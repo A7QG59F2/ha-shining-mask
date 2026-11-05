@@ -176,6 +176,7 @@ class MaskLight(MaskEntity, LightEntity):
                 raise ServiceValidationError(f"Unknown builtin face; choose from {', '.join(BUILTIN_FACES)}")
             await self._upload_canvas(slot, lambda: fit_image(BUILTIN_FACES[builtin]()))
             self.mask.slot_names[slot] = builtin
+            self.mask.preview_changed()
         elif path:
             if not self.hass.config.is_allowed_path(path):
                 raise ServiceValidationError(f"{path} is not in allowlist_external_dirs (use a path under /config or /media)")
@@ -191,6 +192,7 @@ class MaskLight(MaskEntity, LightEntity):
             except OSError as err:
                 raise HomeAssistantError(f"Could not read image {path}: {err}") from err
             self.mask.slot_names[slot] = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+            self.mask.preview_changed()
         else:
             raise ServiceValidationError("Provide either path or builtin")
 
@@ -200,6 +202,7 @@ class MaskLight(MaskEntity, LightEntity):
         for slot, name in DEFAULT_SLOTS.items():
             await self._upload_canvas(slot, lambda n=name: fit_image(BUILTIN_FACES[n]()))
             self.mask.slot_names[slot] = name
+        self.mask.preview_changed()
         await self.mask.async_check()
 
     async def svc_generate_dashboard(self, columns: int = 4) -> dict[str, Any]:

@@ -13,6 +13,7 @@ from bleak_retry_connector import BleakClientWithServiceCache, establish_connect
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.storage import Store
 
 from . import protocol as p
 
@@ -73,6 +74,39 @@ class ShiningMask:
         self._response_override: bool | None = None
         self._cmd_char = p.CMD_UUID
         self._up_char = p.UPLOAD_UUID
+        self._store: Store = Store(hass, 1, f"shining_mask.{address.replace(':', '').lower()}")
+
+    # ------------------------------------------------------------ persistence
+    async def async_load(self) -> None:
+        """Restore remembered state (chosen face, slot names, brightness, last face) after a restart."""
+        data = await self._store.async_load() or {}
+        s = self.state
+        if sel := data.get("selected"):
+            s.selected = (sel[0], [int(v) for v in sel[1]])
+        s.brightness = int(data.get("brightness", s.brightness))
+        s.is_on = bool(data.get("is_on", s.is_on))
+        s.image = data.get("image")
+        s.animation = data.get("animation")
+        s.diy = [int(v) for v in data.get("diy", [])]
+        s.text = data.get("text", "")
+        s.text_mode = data.get("text_mode", s.text_mode)
+        s.speed = data.get("speed")
+        self.slot_names = {int(k): v for k, v in data.get("slot_names", {}).items()}
+
+    def _data_to_save(self) -> dict:
+        s = self.state
+        return {
+            "selected": [s.selected[0], s.selected[1]] if s.selected else None,
+            "brightness": s.brightness,
+            "is_on": s.is_on,
+            "image": s.image,
+            "animation": s.animation,
+            "diy": s.diy,
+            "text": s.text,
+            "text_mode": s.text_mode,
+            "speed": s.speed,
+            "slot_names": {str(k): v for k, v in self.slot_names.items()},
+        }
 
     # ------------------------------------------------------------ listeners
     @callback
@@ -82,6 +116,7 @@ class ShiningMask:
 
     @callback
     def _notify_listeners(self) -> None:
+        self._store.async_delay_save(self._data_to_save, 5)
         for cb in list(self._listeners):
             cb()
 

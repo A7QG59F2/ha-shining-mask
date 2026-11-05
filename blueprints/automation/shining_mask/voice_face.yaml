@@ -33,11 +33,11 @@ blueprint:
       selector: { number: { min: 0, max: 255 } }
     error_kind: { name: Unavailable - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
     error_value: { name: Unavailable - value, default: "6", selector: { text: {} } }
-    unavailable_minutes:
-      name: Unavailable - give up after (minutes)
+    unavailable_seconds:
+      name: Unavailable - give up after (seconds)
       description: How long to show the unavailable face before doing the action below. 0 = never.
-      default: 3
-      selector: { number: { min: 0, max: 120, unit_of_measurement: min } }
+      default: 180
+      selector: { number: { min: 0, max: 7200, step: 5, mode: box, unit_of_measurement: s } }
     unavailable_then:
       name: Unavailable - then
       description: "off: go black. restore: go back to the face you last picked yourself (dashboard, Image/Animation numbers)."
@@ -59,7 +59,7 @@ variables:
     responding: { kind: !input responding_kind, value: !input responding_value }
     unavailable: { kind: !input error_kind, value: !input error_value }
   talk_speed: !input talk_speed
-  unavailable_minutes: !input unavailable_minutes
+  unavailable_seconds: !input unavailable_seconds
   unavailable_then: !input unavailable_then
   state_key: >
     {% set s = trigger.to_state.state if trigger.to_state else 'unavailable' %}
@@ -82,10 +82,10 @@ actions:
   # mode: restart cancels this wait as soon as the satellite changes state again
   - if:
       - condition: template
-        value_template: "{{ state_key == 'unavailable' and (unavailable_minutes | int) > 0 }}"
+        value_template: "{{ state_key == 'unavailable' and (unavailable_seconds | int) > 0 }}"
     then:
       - delay:
-          minutes: "{{ unavailable_minutes | int }}"
+          seconds: "{{ unavailable_seconds | int }}"
       - if:
           - condition: template
             value_template: "{{ unavailable_then == 'off' }}"

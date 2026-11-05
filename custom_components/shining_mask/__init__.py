@@ -36,6 +36,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
         entry.options.get(CONF_MAX_BRIGHTNESS, DEFAULT_MAX_BRIGHTNESS),
         entry.options.get(CONF_BLANK_SLOT, DEFAULT_BLANK_SLOT),
     )
+    await mask.async_load()
     if dev := bluetooth.async_ble_device_from_address(hass, address, connectable=True):
         mask.set_ble_device(dev)
 
