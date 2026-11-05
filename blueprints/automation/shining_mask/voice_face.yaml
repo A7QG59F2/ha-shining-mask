@@ -1,0 +1,68 @@
+blueprint:
+  name: Shining Mask - voice assistant face
+  description: >
+    Gives a voice satellite (e.g. a TECHO5 Echo Show) a face on a Shining LED mask.
+    Each assistant state shows a mask face. "kind" is image (built-in), animation (built-in)
+    or diy (uploaded slots; comma list cycles, e.g. "4,5" = talking mouth).
+    Defaults match the slots written by the shining_mask.install_default_faces action.
+  domain: automation
+  input:
+    satellite:
+      name: Voice satellite
+      selector:
+        entity:
+          domain: assist_satellite
+    mask:
+      name: Mask
+      selector:
+        entity:
+          integration: shining_mask
+          domain: light
+    idle_kind: { name: Idle - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
+    idle_value: { name: Idle - value, default: "1", selector: { text: {} } }
+    listening_kind: { name: Listening - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
+    listening_value: { name: Listening - value, default: "2", selector: { text: {} } }
+    processing_kind: { name: Thinking - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
+    processing_value: { name: Thinking - value, default: "3", selector: { text: {} } }
+    responding_kind: { name: Talking - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
+    responding_value: { name: Talking - value, default: "4,5", selector: { text: {} } }
+    talk_speed:
+      name: Talking mouth speed
+      description: DIY cycle speed while talking (experiment; higher is usually faster).
+      default: 220
+      selector: { number: { min: 0, max: 255 } }
+    error_kind: { name: Unavailable - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
+    error_value: { name: Unavailable - value, default: "6", selector: { text: {} } }
+
+mode: restart
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input satellite
+
+variables:
+  faces:
+    idle: { kind: !input idle_kind, value: !input idle_value }
+    listening: { kind: !input listening_kind, value: !input listening_value }
+    processing: { kind: !input processing_kind, value: !input processing_value }
+    responding: { kind: !input responding_kind, value: !input responding_value }
+    unavailable: { kind: !input error_kind, value: !input error_value }
+  talk_speed: !input talk_speed
+  state_key: >
+    {% set s = trigger.to_state.state if trigger.to_state else 'unavailable' %}
+    {{ s if s in faces else ('unavailable' if s in ['unavailable', 'unknown'] else 'idle') }}
+
+conditions:
+  - condition: template
+    value_template: "{{ trigger.from_state is none or trigger.from_state.state != trigger.to_state.state }}"
+
+actions:
+  - action: shining_mask.show_face
+    target:
+      entity_id: !input mask
+    data:
+      kind: "{{ faces[state_key].kind }}"
+      value: "{{ faces[state_key].value }}"
+      speed: "{{ talk_speed | int if state_key == 'responding' else 128 }}"
+    continue_on_error: true

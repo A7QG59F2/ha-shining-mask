@@ -1,0 +1,16 @@
+{
+  "domain": "shining_mask",
+  "name": "Shining Mask",
+  "bluetooth": [
+    { "local_name": "MASK*", "connectable": true }
+  ],
+  "codeowners": ["@A7QG59F2"],
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
+  "documentation": "https://github.com/A7QG59F2/ha-shining-mask",
+  "integration_type": "device",
+  "iot_class": "assumed_state",
+  "issue_tracker": "https://github.com/A7QG59F2/ha-shining-mask/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

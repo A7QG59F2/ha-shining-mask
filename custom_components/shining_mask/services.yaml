@@ -1,0 +1,138 @@
+show_image:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    image:
+      required: true
+      example: 3
+      selector:
+        number: { min: 1, max: 255, mode: box }
+
+show_animation:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    animation:
+      required: true
+      example: 2
+      selector:
+        number: { min: 1, max: 255, mode: box }
+
+play_diy:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    slots:
+      required: true
+      example: "4,5"
+      selector:
+        text:
+    speed:
+      example: 200
+      selector:
+        number: { min: 0, max: 255 }
+
+show_face:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    kind:
+      required: true
+      default: diy
+      selector:
+        select:
+          options: [image, animation, diy]
+    value:
+      required: true
+      example: "1"
+      selector:
+        text:
+    speed:
+      selector:
+        number: { min: 0, max: 255 }
+
+set_text:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    text:
+      required: true
+      example: "Happy Halloween"
+      selector:
+        text:
+    color:
+      default: [255, 120, 0]
+      selector:
+        color_rgb:
+    mode:
+      default: scroll_left
+      selector:
+        select:
+          options: [steady, blink, scroll_left, scroll_right]
+    speed:
+      selector:
+        number: { min: 0, max: 255 }
+
+upload_image:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    slot:
+      required: true
+      example: 8
+      selector:
+        number: { min: 1, max: 255, mode: box }
+    path:
+      example: /config/www/mask/pumpkin.png
+      selector:
+        text:
+    builtin:
+      selector:
+        select:
+          options: [idle, listening, thinking, talk_closed, talk_open, error, sleep, test_pattern]
+
+install_default_faces:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+
+delete_diy:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    slots:
+      required: true
+      example: "1,2,3"
+      selector:
+        text:
+
+send_command:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    command:
+      required: true
+      example: LIGHT
+      selector:
+        text:
+    args:
+      example: "80"
+      selector:
+        text:
