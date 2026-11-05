@@ -163,6 +163,10 @@
           "description": "Argument bytes as hex."
         }
       }
+    },
+    "generate_dashboard": {
+      "name": "Generate dashboard card",
+      "description": "Build a tap-to-show grid of face thumbnails (your DIY faces plus pictures in /config/shining_mask/builtin). Writes /config/shining_mask/dashboard_card.yaml and returns the card."
     }
   }
 }

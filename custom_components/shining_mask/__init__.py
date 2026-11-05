@@ -18,8 +18,9 @@ from .const import (
     DEFAULT_PIXEL_ORDER,
 )
 from .device import ShiningMask
+from .previews import async_register_static
 
-PLATFORMS = [Platform.LIGHT, Platform.NUMBER, Platform.SELECT, Platform.TEXT]
+PLATFORMS = [Platform.IMAGE, Platform.LIGHT, Platform.NUMBER, Platform.SELECT, Platform.TEXT]
 
 type MaskConfigEntry = ConfigEntry[ShiningMask]
 
@@ -49,6 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
         )
     )
     entry.runtime_data = mask
+    await async_register_static(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_reload))
     return True

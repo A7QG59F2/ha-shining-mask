@@ -33,13 +33,18 @@ def render_text(text: str, color: Sequence[int] = (255, 255, 255)) -> tuple[byte
     return encode_text_columns(columns, colors)
 
 
-def image_to_payload(img: Image.Image, order: str = "column") -> bytes:
-    """Fit any image into 46x58 (letterboxed, black) and encode it."""
+def fit_image(img: Image.Image) -> Image.Image:
+    """Fit any image into a 46x58 black canvas (letterboxed)."""
     img = img.convert("RGB")
     img.thumbnail((W, H), Image.Resampling.LANCZOS)
     canvas = Image.new("RGB", (W, H), (0, 0, 0))
     canvas.paste(img, ((W - img.width) // 2, (H - img.height) // 2))
-    return encode_image_pixels(list(canvas.getdata()), order)
+    return canvas
+
+
+def image_to_payload(img: Image.Image, order: str = "column") -> bytes:
+    """Fit any image into 46x58 (letterboxed, black) and encode it."""
+    return encode_image_pixels(list(fit_image(img).getdata()), order)
 
 
 # ----------------------------------------------------------- built-in faces

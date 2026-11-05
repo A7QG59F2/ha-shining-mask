@@ -57,6 +57,8 @@ class ShiningMask:
         self.max_brightness = max(1, min(255, max_brightness))
         self.blank_slot = blank_slot
         self._blank_uploaded = False
+        self.slot_names: dict[int, str] = {}
+        self.preview_version = 0
         self.state = MaskState()
         self._ble_device: BLEDevice | None = None
         self._client: BleakClientWithServiceCache | None = None
@@ -80,6 +82,11 @@ class ShiningMask:
     def _notify_listeners(self) -> None:
         for cb in list(self._listeners):
             cb()
+
+    @callback
+    def preview_changed(self) -> None:
+        self.preview_version += 1
+        self._notify_listeners()
 
     @callback
     def set_ble_device(self, device: BLEDevice) -> None:

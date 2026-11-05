@@ -109,6 +109,12 @@ install_default_faces:
       integration: shining_mask
       domain: light
 
+generate_dashboard:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+
 delete_diy:
   target:
     entity:

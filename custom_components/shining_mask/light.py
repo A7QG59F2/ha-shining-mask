@@ -7,7 +7,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.components.light import ATTR_BRIGHTNESS, ColorMode, LightEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -70,6 +70,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         "svc_upload_image",
     )
     platform.async_register_entity_service("install_default_faces", {}, "svc_install_default_faces")
+    platform.async_register_entity_service(
+        "generate_dashboard", {}, "svc_generate_dashboard", supports_response=SupportsResponse.OPTIONAL
+    )
     platform.async_register_entity_service("delete_diy", {vol.Required("slots"): _slots}, "svc_delete_diy")
     platform.async_register_entity_service(
         "send_command",
@@ -140,42 +143,70 @@ class MaskLight(MaskEntity, LightEntity):
     async def svc_set_text(self, text: str, color, mode: str, speed: int | None = None) -> None:
         await self.mask.async_set_text(text, color, TEXT_MODES[mode], speed)
 
-    async def svc_upload_image(self, slot: int, path: str | None = None, builtin: str | None = None) -> None:
-        from .graphics import BUILTIN_FACES, image_to_payload
+    async def _upload_canvas(self, slot: int, make_canvas) -> None:
+        """make_canvas: blocking callable returning a 46x58 RGB canvas."""
+        from .graphics import encode_image_pixels
+        from .previews import save_diy_preview
 
         order = self.mask.pixel_order
+
+        def _prep():
+            canvas = make_canvas()
+            return canvas, encode_image_pixels(list(canvas.getdata()), order)
+
+        canvas, payload = await self.hass.async_add_executor_job(_prep)
+        await self.mask.async_upload_image(slot, payload)
+        await self.hass.async_add_executor_job(save_diy_preview, self.hass, slot, canvas)
+        self.mask.preview_changed()
+
+    async def svc_upload_image(self, slot: int, path: str | None = None, builtin: str | None = None) -> None:
+        from .graphics import BUILTIN_FACES, fit_image
+
         if builtin:
             if builtin not in BUILTIN_FACES:
                 raise ServiceValidationError(f"Unknown builtin face; choose from {', '.join(BUILTIN_FACES)}")
-            payload = await self.hass.async_add_executor_job(lambda: image_to_payload(BUILTIN_FACES[builtin](), order))
+            await self._upload_canvas(slot, lambda: fit_image(BUILTIN_FACES[builtin]()))
+            self.mask.slot_names[slot] = builtin
         elif path:
             if not self.hass.config.is_allowed_path(path):
                 raise ServiceValidationError(f"{path} is not in allowlist_external_dirs (use a path under /config or /media)")
 
-            def _load() -> bytes:
+            def _load():
                 from PIL import Image
 
                 with Image.open(path) as img:
-                    return image_to_payload(img, order)
+                    return fit_image(img)
 
             try:
-                payload = await self.hass.async_add_executor_job(_load)
+                await self._upload_canvas(slot, _load)
             except OSError as err:
                 raise HomeAssistantError(f"Could not read image {path}: {err}") from err
+            self.mask.slot_names[slot] = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
         else:
             raise ServiceValidationError("Provide either path or builtin")
-        await self.mask.async_upload_image(slot, payload)
 
     async def svc_install_default_faces(self) -> None:
-        from .graphics import BUILTIN_FACES, DEFAULT_SLOTS, image_to_payload
+        from .graphics import BUILTIN_FACES, DEFAULT_SLOTS, fit_image
 
-        order = self.mask.pixel_order
         for slot, name in DEFAULT_SLOTS.items():
-            payload = await self.hass.async_add_executor_job(
-                lambda n=name: image_to_payload(BUILTIN_FACES[n](), order)
-            )
-            await self.mask.async_upload_image(slot, payload)
+            await self._upload_canvas(slot, lambda n=name: fit_image(BUILTIN_FACES[n]()))
+            self.mask.slot_names[slot] = name
         await self.mask.async_check()
+
+    async def svc_generate_dashboard(self) -> dict[str, Any]:
+        import yaml
+
+        from .previews import build_dashboard, root
+
+        def _build():
+            card, unassigned = build_dashboard(self.hass, self.entity_id, self.mask.slot_names, self.mask.blank_slot)
+            text = yaml.safe_dump(card, sort_keys=False, allow_unicode=True)
+            out = root(self.hass) / "dashboard_card.yaml"
+            out.write_text(text)
+            return card, unassigned, str(out)
+
+        card, unassigned, out = await self.hass.async_add_executor_job(_build)
+        return {"file": out, "unassigned_builtin_files": unassigned, "card": card}
 
     async def svc_delete_diy(self, slots: list[int]) -> None:
         await self.mask.async_delete_diy(slots)

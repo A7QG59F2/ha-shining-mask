@@ -51,6 +51,20 @@ State is *assumed* (the mask doesn't report back), so the entities show the last
 
 Any state can use a built-in image or animation instead (kind = image/animation).
 
+## 6. Face previews and a tap-to-show grid
+- **`image.…_current_face`** shows what the mask is displaying: your DIY faces, plus built-in
+  images and animations if you supply pictures of them.
+- **Built-in thumbnails:** put pictures (photos of the mask or app screenshots, kept for your own
+  use only) in `/config/shining_mask/builtin/`. The last number in a file name sets the number, and
+  names containing `anim` are animations: `3.png` and `image_03.png` both map to image 3;
+  `anim_2.webp` maps to animation 2.
+- **DIY previews** are saved automatically to `/config/shining_mask/diy/<slot>.png` whenever you upload.
+- Run **`shining_mask.generate_dashboard`** (tick *return response* in Developer tools) to build a card
+  with headings and 4-wide grids of thumbnails. Tapping one shows it on the mask. The card is written
+  to `/config/shining_mask/dashboard_card.yaml`. Paste it into a dashboard via *Add card → Manual*.
+  Re-run it after adding pictures.
+- Preview files are served read-only at `/shining_mask/diy/…` and `/shining_mask/builtin/…`.
+
 ## Options
 - **Disconnect after idle seconds**: 0 (default) keeps the link open for instant face changes.
   Set this to e.g. 60 to save mask battery or free a proxy slot.
