@@ -4,15 +4,28 @@
     "step": {
       "user": {
         "title": "Pick your mask",
-        "data": { "address": "Mask" }
+        "description": "{hint} Make sure the mask is on and the phone app is closed. Entries marked 'non-connectable' are only heard by a proxy that can't connect - turn on 'Bluetooth proxy connections' on your TECHO5 device.",
+        "data": {
+          "address": "Device"
+        }
       },
       "bluetooth_confirm": {
         "description": "Set up {name}?"
+      },
+      "manual": {
+        "title": "Enter address",
+        "description": "Bluetooth address of the mask, e.g. AA:BB:CC:DD:EE:FF (find it under Settings > Devices & services > Bluetooth > Advertisement monitor).",
+        "data": {
+          "address": "Bluetooth address"
+        }
       }
     },
     "abort": {
       "already_configured": "This mask is already configured.",
       "no_devices_found": "No masks found. Turn the mask on and make sure a Bluetooth proxy with active connections (e.g. TECHO5 Show) is in range."
+    },
+    "error": {
+      "invalid_address": "That doesn't look like a Bluetooth address (AA:BB:CC:DD:EE:FF)."
     }
   },
   "options": {
@@ -29,14 +42,125 @@
     }
   },
   "services": {
-    "show_image": { "name": "Show built-in image", "description": "Show one of the mask's built-in images.", "fields": { "image": { "name": "Image", "description": "Image number." } } },
-    "show_animation": { "name": "Show built-in animation", "description": "Play one of the mask's built-in animations.", "fields": { "animation": { "name": "Animation", "description": "Animation number." } } },
-    "play_diy": { "name": "Play DIY images", "description": "Cycle through uploaded DIY images.", "fields": { "slots": { "name": "Slots", "description": "Comma-separated slot numbers, e.g. 4,5." }, "speed": { "name": "Speed", "description": "Cycle speed." } } },
-    "show_face": { "name": "Show face", "description": "Generic: show an image, animation or DIY sequence.", "fields": { "kind": { "name": "Kind", "description": "image, animation or diy." }, "value": { "name": "Value", "description": "Number, or comma list for diy." }, "speed": { "name": "Speed", "description": "DIY cycle speed." } } },
-    "set_text": { "name": "Set text", "description": "Upload text to the mask.", "fields": { "text": { "name": "Text", "description": "Text to show." }, "color": { "name": "Color", "description": "Text color." }, "mode": { "name": "Mode", "description": "Display mode." }, "speed": { "name": "Speed", "description": "Scroll speed." } } },
-    "upload_image": { "name": "Upload DIY image", "description": "Upload an image file or a built-in face into a DIY slot.", "fields": { "slot": { "name": "Slot", "description": "DIY slot number." }, "path": { "name": "Path", "description": "Image file path inside an allowed directory." }, "builtin": { "name": "Built-in face", "description": "Use a generated face instead of a file." } } },
-    "install_default_faces": { "name": "Install default faces", "description": "Upload the voice-assistant faces to DIY slots 1-7 (idle, listening, thinking, talk closed, talk open, error, sleep)." },
-    "delete_diy": { "name": "Delete DIY images", "description": "Delete uploaded DIY images.", "fields": { "slots": { "name": "Slots", "description": "Comma-separated slots." } } },
-    "send_command": { "name": "Send raw command", "description": "Send an arbitrary command (for experimenting).", "fields": { "command": { "name": "Command", "description": "ASCII tag, e.g. LIGHT." }, "args": { "name": "Args", "description": "Argument bytes as hex." } } }
+    "show_image": {
+      "name": "Show built-in image",
+      "description": "Show one of the mask's built-in images.",
+      "fields": {
+        "image": {
+          "name": "Image",
+          "description": "Image number."
+        }
+      }
+    },
+    "show_animation": {
+      "name": "Show built-in animation",
+      "description": "Play one of the mask's built-in animations.",
+      "fields": {
+        "animation": {
+          "name": "Animation",
+          "description": "Animation number."
+        }
+      }
+    },
+    "play_diy": {
+      "name": "Play DIY images",
+      "description": "Cycle through uploaded DIY images.",
+      "fields": {
+        "slots": {
+          "name": "Slots",
+          "description": "Comma-separated slot numbers, e.g. 4,5."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "Cycle speed."
+        }
+      }
+    },
+    "show_face": {
+      "name": "Show face",
+      "description": "Generic: show an image, animation or DIY sequence.",
+      "fields": {
+        "kind": {
+          "name": "Kind",
+          "description": "image, animation or diy."
+        },
+        "value": {
+          "name": "Value",
+          "description": "Number, or comma list for diy."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "DIY cycle speed."
+        }
+      }
+    },
+    "set_text": {
+      "name": "Set text",
+      "description": "Upload text to the mask.",
+      "fields": {
+        "text": {
+          "name": "Text",
+          "description": "Text to show."
+        },
+        "color": {
+          "name": "Color",
+          "description": "Text color."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "Display mode."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "Scroll speed."
+        }
+      }
+    },
+    "upload_image": {
+      "name": "Upload DIY image",
+      "description": "Upload an image file or a built-in face into a DIY slot.",
+      "fields": {
+        "slot": {
+          "name": "Slot",
+          "description": "DIY slot number."
+        },
+        "path": {
+          "name": "Path",
+          "description": "Image file path inside an allowed directory."
+        },
+        "builtin": {
+          "name": "Built-in face",
+          "description": "Use a generated face instead of a file."
+        }
+      }
+    },
+    "install_default_faces": {
+      "name": "Install default faces",
+      "description": "Upload the voice-assistant faces to DIY slots 1-7 (idle, listening, thinking, talk closed, talk open, error, sleep)."
+    },
+    "delete_diy": {
+      "name": "Delete DIY images",
+      "description": "Delete uploaded DIY images.",
+      "fields": {
+        "slots": {
+          "name": "Slots",
+          "description": "Comma-separated slots."
+        }
+      }
+    },
+    "send_command": {
+      "name": "Send raw command",
+      "description": "Send an arbitrary command (for experimenting).",
+      "fields": {
+        "command": {
+          "name": "Command",
+          "description": "ASCII tag, e.g. LIGHT."
+        },
+        "args": {
+          "name": "Args",
+          "description": "Argument bytes as hex."
+        }
+      }
+    }
   }
 }

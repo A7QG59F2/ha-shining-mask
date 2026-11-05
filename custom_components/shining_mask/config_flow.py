@@ -25,9 +25,18 @@ from .const import (
 from .protocol import SERVICE_UUID
 
 
+MANUAL = "manual"
+
+
 def _is_mask(info: BluetoothServiceInfoBleak) -> bool:
     name = (info.name or "").upper()
-    return name.startswith("MASK") or (SERVICE_UUID in info.service_uuids and "MASK" in name)
+    return "MASK" in name or SERVICE_UUID in info.service_uuids
+
+
+def _label(info: BluetoothServiceInfoBleak) -> str:
+    name = info.name or "(no name)"
+    extra = "" if info.connectable else " - heard only via a non-connectable proxy"
+    return f"{name} ({info.address}, {info.rssi} dBm){extra}"
 
 
 class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -35,7 +44,7 @@ class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._discovery: BluetoothServiceInfoBleak | None = None
-        self._found: dict[str, str] = {}
+        self._names: dict[str, str] = {}
 
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> ConfigFlowResult:
         await self.async_set_unique_id(discovery_info.address)
@@ -55,21 +64,52 @@ class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="bluetooth_confirm", description_placeholders={"name": self._discovery.name}
         )
 
+    async def _create(self, address: str, title: str) -> ConfigFlowResult:
+        address = address.strip().upper()
+        await self.async_set_unique_id(address, raise_on_progress=False)
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(title=title, data={CONF_ADDRESS: address})
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
-            await self.async_set_unique_id(address, raise_on_progress=False)
-            self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=self._found.get(address, "Shining Mask"), data={CONF_ADDRESS: address})
+            if address == MANUAL:
+                return await self.async_step_manual()
+            return await self._create(address, self._names.get(address, "Shining Mask"))
 
         current = self._async_current_ids()
-        for info in async_discovered_service_info(self.hass, connectable=True):
-            if info.address not in current and _is_mask(info):
-                self._found[info.address] = f"{info.name} ({info.address})"
-        if not self._found:
-            return self.async_abort(reason="no_devices_found")
+        infos: dict[str, BluetoothServiceInfoBleak] = {}
+        # connectable=False returns everything heard, including via listen-only proxies
+        for info in async_discovered_service_info(self.hass, connectable=False):
+            if info.address in current:
+                continue
+            prev = infos.get(info.address)
+            if prev is None or (info.connectable and not prev.connectable):
+                infos[info.address] = info
+        likely = [i for i in infos.values() if _is_mask(i)]
+        # nothing matched: show every named device so the user can spot the mask
+        shown = likely or [i for i in infos.values() if i.name and i.name != i.address]
+        shown.sort(key=lambda i: i.rssi or -999, reverse=True)
+        self._names = {i.address: i.name or "Shining Mask" for i in shown[:40]}
+        options = {i.address: _label(i) for i in shown[:40]}
+        options[MANUAL] = "Enter Bluetooth address manually"
         return self.async_show_form(
-            step_id="user", data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(self._found)})
+            step_id="user",
+            data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(options)}),
+            description_placeholders={
+                "hint": "Likely masks found." if likely else "No device named MASK found - showing all named devices (strongest signal first)."
+            },
+        )
+
+    async def async_step_manual(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors = {}
+        if user_input is not None:
+            addr = user_input[CONF_ADDRESS].strip().upper()
+            if len(addr.split(":")) == 6:
+                return await self._create(addr, "Shining Mask")
+            errors["base"] = "invalid_address"
+        return self.async_show_form(
+            step_id="manual", data_schema=vol.Schema({vol.Required(CONF_ADDRESS): str}), errors=errors
         )
 
     @staticmethod
