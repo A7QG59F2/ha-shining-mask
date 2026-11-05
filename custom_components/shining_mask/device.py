@@ -34,6 +34,8 @@ class MaskState:
     speed: int | None = None
     connected: bool = False
     diy_count: int | None = None
+    gatt: list[str] = field(default_factory=list)
+    last_error: str | None = None
 
 
 class ShiningMask:
@@ -52,6 +54,9 @@ class ShiningMask:
         self._listeners: list[Callable[[], None]] = []
         self._cmd_response = False
         self._upload_response = False
+        self._response_override: bool | None = None
+        self._cmd_char = p.CMD_UUID
+        self._up_char = p.UPLOAD_UUID
 
     # ------------------------------------------------------------ listeners
     @callback
@@ -79,22 +84,85 @@ class ShiningMask:
                 "(is 'Bluetooth proxy connections' enabled on the TECHO5 Show, and is the mask on?)"
             )
         _LOGGER.debug("Connecting to %s via %s", self.address, getattr(device, "details", None))
-        client = await establish_connection(
-            BleakClientWithServiceCache, device, self.name, disconnected_callback=self._on_disconnect, max_attempts=3
-        )
-        cmd_char = client.services.get_characteristic(p.CMD_UUID)
-        up_char = client.services.get_characteristic(p.UPLOAD_UUID)
+        try:
+            client = await establish_connection(
+                BleakClientWithServiceCache, device, self.name, disconnected_callback=self._on_disconnect, max_attempts=3
+            )
+        except Exception as err:  # noqa: BLE001
+            self.state.last_error = f"connect: {type(err).__name__}: {err}"
+            self._notify_listeners()
+            raise HomeAssistantError(f"Could not connect to {self.name}: {err}") from err
+
+        chars = self._resolve(client)
+        if chars[0] is None:
+            # stale GATT cache is the usual cause - clear it and rediscover once
+            _LOGGER.debug("Command characteristic missing, clearing GATT cache and retrying")
+            try:
+                await client.clear_cache()
+            except Exception:  # noqa: BLE001
+                pass
+            await client.disconnect()
+            client = await establish_connection(
+                BleakClientWithServiceCache, device, self.name, disconnected_callback=self._on_disconnect, max_attempts=3
+            )
+            chars = self._resolve(client)
+        cmd_char, notify_char, up_char = chars
         if cmd_char is None:
             await client.disconnect()
-            raise HomeAssistantError("Device does not expose the Shining Mask command characteristic")
-        self._cmd_response = "write-without-response" not in cmd_char.properties
+            self.state.last_error = "no command characteristic; see 'gatt' attribute"
+            self._notify_listeners()
+            raise HomeAssistantError(
+                "Connected, but the mask has no recognised command characteristic. "
+                "Check the 'gatt' attribute on the mask light entity and share it."
+            )
+        self._cmd_char, self._up_char = cmd_char, (up_char or p.UPLOAD_UUID)
+        self._cmd_response = (
+            self._response_override
+            if self._response_override is not None
+            else "write-without-response" not in cmd_char.properties
+        )
         self._upload_response = up_char is not None and "write-without-response" not in up_char.properties
         self._notify = asyncio.Queue()
-        await client.start_notify(p.NOTIFY_UUID, self._on_notification)
+        if notify_char is not None:
+            try:
+                await client.start_notify(notify_char, self._on_notification)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Could not subscribe to mask notifications: %s", err)
         self._client = client
         self.state.connected = True
+        self.state.last_error = None
         self._notify_listeners()
         return client
+
+    def _resolve(self, client):
+        """Find command / notify / upload characteristics; record the GATT table for diagnostics."""
+        summary, cmd, notify, up = [], None, None, None
+        writable = []
+        for service in client.services:
+            for ch in service.characteristics:
+                props = ",".join(ch.properties)
+                summary.append(f"{service.uuid[4:8]}/{ch.uuid} h{ch.handle} [{props}]")
+                u = ch.uuid.lower()
+                if u == p.CMD_UUID:
+                    cmd = ch
+                elif u == p.NOTIFY_UUID:
+                    notify = ch
+                elif u == p.UPLOAD_UUID:
+                    up = ch
+                if service.uuid.lower() == p.SERVICE_UUID and ({"write", "write-without-response"} & set(ch.properties)):
+                    writable.append(ch)
+        if cmd is None and writable:
+            # fallback for variants: first writable char in the FFF0 service
+            cmd = writable[0]
+            _LOGGER.warning("Known command characteristic not found; falling back to %s", cmd.uuid)
+        if notify is None:
+            notify = next(
+                (ch for s in client.services if s.uuid.lower() == p.SERVICE_UUID
+                 for ch in s.characteristics if {"notify", "indicate"} & set(ch.properties)),
+                None,
+            )
+        self.state.gatt = summary
+        return cmd, notify, up
 
     def _on_disconnect(self, _client) -> None:
         _LOGGER.debug("%s disconnected", self.address)
@@ -158,14 +226,35 @@ class ShiningMask:
 
     # ------------------------------------------------------------ primitives
     async def _write_cmd(self, client, packet: bytes) -> None:
-        await client.write_gatt_char(p.CMD_UUID, packet, response=self._cmd_response)
+        await client.write_gatt_char(self._cmd_char, packet, response=self._cmd_response)
+
+    async def _drop(self) -> None:
+        client, self._client = self._client, None
+        if client:
+            try:
+                await client.disconnect()
+            except Exception:  # noqa: BLE001
+                pass
+        self.state.connected = False
 
     async def async_send(self, *packets: bytes) -> None:
-        """Send one or more encrypted command packets."""
+        """Send one or more encrypted command packets (one reconnect-and-retry on failure)."""
         async with self._lock:
-            client = await self._ensure_connected()
-            for pkt in packets:
-                await self._write_cmd(client, pkt)
+            for attempt in (1, 2):
+                client = await self._ensure_connected()
+                try:
+                    for pkt in packets:
+                        await self._write_cmd(client, pkt)
+                    break
+                except Exception as err:  # noqa: BLE001
+                    self.state.last_error = f"write: {type(err).__name__}: {err}"
+                    _LOGGER.warning("Mask write failed (attempt %d): %s: %s", attempt, type(err).__name__, err)
+                    # some masks reject write-with-response; flip mode on the retry
+                    self._response_override = not self._cmd_response
+                    await self._drop()
+                    if attempt == 2:
+                        self._notify_listeners()
+                        raise HomeAssistantError(f"Mask rejected the command: {type(err).__name__}: {err}") from err
             self._schedule_idle_disconnect()
 
     async def async_upload(self, start_packet: bytes, payload: bytes) -> None:
@@ -176,7 +265,7 @@ class ShiningMask:
             if not await self._expect("DATSOK", ACK_TIMEOUT):
                 raise HomeAssistantError("Mask did not acknowledge upload start (DATSOK)")
             for pkt in p.upload_packets(payload):
-                await client.write_gatt_char(p.UPLOAD_UUID, pkt, response=self._upload_response)
+                await client.write_gatt_char(self._up_char, pkt, response=self._upload_response)
                 if not await self._expect("REOK", PACKET_ACK_TIMEOUT):
                     _LOGGER.debug("No REOK for packet %d, continuing", pkt[1])
             await self._write_cmd(client, p.cmd_upload_complete())

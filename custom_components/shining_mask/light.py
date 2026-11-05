@@ -105,6 +105,8 @@ class MaskLight(MaskEntity, LightEntity):
             "diy_slots": s.diy,
             "text": s.text,
             "diy_image_count": s.diy_count,
+            "last_error": s.last_error,
+            "gatt": s.gatt,
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
