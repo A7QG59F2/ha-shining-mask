@@ -57,6 +57,18 @@ Any state can use a built-in image or animation instead (kind = image/animation)
 - **Pixel order**: see step 5.1.
 - **Max image/animation**: range limits for the number entities.
 
+## Troubleshooting
+- **"Not in range of any connectable Bluetooth adapter or proxy"**: HA hears the mask only through a
+  listen-only path. Open Settings → Devices & services → Bluetooth → Configure → *Advertisement monitor*
+  and find `MASK-xxxxxx`. If `connectable` is `false`, the proxy (`source`) isn't allowing connections.
+  On TECHO5, turn on the **Bluetooth proxy connections** toggle, power-cycle the mask, and wait until
+  the monitor shows `connectable: true`.
+- **Setup finds no masks**: the setup screen lists every named nearby device and has a manual-address option.
+- **Commands fail after connecting**: the mask light entity's `last_error` and `gatt` attributes show
+  the real Bluetooth error and the mask's GATT table.
+- Keep the mask within a couple of metres of the proxy for setup. Around -77 dBm, a proxy can still
+  hear it but connecting may fail.
+
 ## Testing from a PC (optional)
 `tools/mask_cli.py` speaks the same protocol directly with `bleak`:
 `python tools/mask_cli.py upload 8 test_pattern`, `… text "Boo"`, `… image 5`.
