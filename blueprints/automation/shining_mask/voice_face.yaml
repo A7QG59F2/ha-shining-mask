@@ -5,6 +5,7 @@ blueprint:
     Each assistant state shows a mask face. "kind" is image (built-in), animation (built-in)
     or diy (uploaded slots; comma list cycles, e.g. "4,5" = talking mouth).
     Defaults match the slots written by the shining_mask.install_default_faces action.
+    When idle (finished speaking), the mask goes back to the face you picked yourself by default.
   domain: automation
   input:
     satellite:
@@ -18,8 +19,17 @@ blueprint:
         entity:
           integration: shining_mask
           domain: light
-    idle_kind: { name: Idle - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
-    idle_value: { name: Idle - value, default: "1", selector: { text: {} } }
+    idle_kind:
+      name: Idle - kind
+      description: "chosen = go back to the face you picked yourself (dashboard / Image / Animation). Or show a specific image, animation or DIY slot."
+      default: chosen
+      selector: { select: { options: [chosen, image, animation, diy] } }
+    idle_value: { name: Idle - value (ignored for 'chosen'), default: "1", selector: { text: {} } }
+    idle_return_seconds:
+      name: Idle - then go back to the chosen face after (seconds)
+      description: Only used when Idle kind isn't 'chosen'. 0 = keep showing the idle face.
+      default: 0
+      selector: { number: { min: 0, max: 3600, step: 1, mode: box, unit_of_measurement: s } }
     listening_kind: { name: Listening - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
     listening_value: { name: Listening - value, default: "2", selector: { text: {} } }
     processing_kind: { name: Thinking - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
@@ -60,6 +70,7 @@ variables:
     unavailable: { kind: !input error_kind, value: !input error_value }
   talk_speed: !input talk_speed
   unavailable_seconds: !input unavailable_seconds
+  idle_return_seconds: !input idle_return_seconds
   unavailable_then: !input unavailable_then
   state_key: >
     {% set s = trigger.to_state.state if trigger.to_state else 'unavailable' %}
@@ -70,16 +81,35 @@ conditions:
     value_template: "{{ trigger.from_state is none or trigger.from_state.state != trigger.to_state.state }}"
 
 actions:
-  - action: shining_mask.show_face
-    target:
-      entity_id: !input mask
-    data:
-      kind: "{{ faces[state_key].kind }}"
-      value: "{{ faces[state_key].value }}"
-      speed: "{{ talk_speed | int if state_key == 'responding' else 128 }}"
-      temporary: true
-    continue_on_error: true
-  # mode: restart cancels this wait as soon as the satellite changes state again
+  - if:
+      - condition: template
+        value_template: "{{ faces[state_key].kind == 'chosen' }}"
+    then:
+      - action: shining_mask.restore_selected
+        target:
+          entity_id: !input mask
+        continue_on_error: true
+    else:
+      - action: shining_mask.show_face
+        target:
+          entity_id: !input mask
+        data:
+          kind: "{{ faces[state_key].kind }}"
+          value: "{{ faces[state_key].value }}"
+          speed: "{{ talk_speed | int if state_key == 'responding' else 128 }}"
+          temporary: true
+        continue_on_error: true
+  # mode: restart cancels these waits as soon as the satellite changes state again
+  - if:
+      - condition: template
+        value_template: "{{ state_key == 'idle' and faces.idle.kind != 'chosen' and (idle_return_seconds | int) > 0 }}"
+    then:
+      - delay:
+          seconds: "{{ idle_return_seconds | int }}"
+      - action: shining_mask.restore_selected
+        target:
+          entity_id: !input mask
+        continue_on_error: true
   - if:
       - condition: template
         value_template: "{{ state_key == 'unavailable' and (unavailable_seconds | int) > 0 }}"

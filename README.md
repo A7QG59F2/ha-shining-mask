@@ -45,7 +45,8 @@ State is *assumed* (the mask doesn't report back), so the entities show the last
 3. Import the blueprint `blueprints/automation/shining_mask/voice_face.yaml`
    (copy it to `/config/blueprints/automation/shining_mask/`), then create an automation from it.
    Pick the Show's `assist_satellite` entity and the mask.
-   - idle → slot 1, listening → slot 2, thinking → slot 3
+   - idle (finished speaking) → back to the face you picked yourself (or a fixed face, optionally
+     returning to your face after N seconds); listening → slot 2, thinking → slot 3
    - **talking → slots `4,5` cycling** (a flapping mouth), with adjustable speed
    - unavailable → slot 6, then after **N seconds** (default 180) either go black (`off`) or
      go back to the face you last picked yourself (`restore`, the default)
