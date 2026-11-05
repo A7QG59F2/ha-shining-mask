@@ -13,7 +13,7 @@ DEFAULT_DISCONNECT_AFTER = 0  # seconds; 0 = stay connected (lowest latency for 
 DEFAULT_PIXEL_ORDER = "column"
 DEFAULT_MAX_IMAGE = 60
 DEFAULT_MAX_ANIMATION = 60
-DEFAULT_MAX_BRIGHTNESS = 160  # mask flickers from ~200 (0xC8) up
+DEFAULT_MAX_BRIGHTNESS = 128  # 0x80 tested clean; slight flicker reported at 160, strong at 200
 DEFAULT_BLANK_SLOT = 9  # DIY slot holding an all-black frame, used for "off"
 
 TEXT_MODES = {

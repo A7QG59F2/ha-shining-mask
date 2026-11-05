@@ -46,7 +46,7 @@ class ShiningMask:
         name: str,
         disconnect_after: int,
         pixel_order: str,
-        max_brightness: int = 160,
+        max_brightness: int = 128,
         blank_slot: int = 9,
     ) -> None:
         self.hass = hass
