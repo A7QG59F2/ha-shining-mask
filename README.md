@@ -56,8 +56,8 @@ Any state can use a built-in image or animation instead (kind = image/animation)
   images and animations if you supply pictures of them.
 - **Built-in thumbnails:** put pictures (photos of the mask or app screenshots, kept for your own
   use only) in `/config/shining_mask/builtin/`. The last number in a file name sets the number, and
-  names containing `anim` are animations: `3.png` and `image_03.png` both map to image 3;
-  `anim_2.webp` maps to animation 2.
+  GIFs (or names containing `anim`) are animations: `3.bmp` or `3.png` maps to image 3;
+  `3.gif` (or `anim_3.png`) maps to animation 3. GIF thumbnails play in the dashboard.
 - **DIY previews** are saved automatically to `/config/shining_mask/diy/<slot>.png` whenever you upload.
 - Run **`shining_mask.generate_dashboard`** (tick *return response* in Developer tools) to build a card
   with headings and 4-wide grids of thumbnails. Tapping one shows it on the mask. The card is written

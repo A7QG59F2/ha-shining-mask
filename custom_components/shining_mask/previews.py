@@ -3,9 +3,9 @@
 Folder layout (inside the HA config dir, never shipped with the integration):
   shining_mask/diy/<slot>.png      written automatically when a DIY image is uploaded
   shining_mask/builtin/*.png|webp  YOUR pictures of the mask's built-in images/animations.
-      Names map by the last number in the file name; names containing "anim" are animations:
-        3.png, image_03.png  -> built-in image 3
-        anim_2.png, animation2.webp -> built-in animation 2
+      Names map by the last number in the file name. GIFs (or names containing "anim") are animations:
+        3.bmp, 3.png, image_03.png  -> built-in image 3
+        3.gif, anim_3.png           -> built-in animation 3
 Served (read-only) at /shining_mask/diy/... and /shining_mask/builtin/...
 """
 
@@ -95,7 +95,8 @@ def scan_builtin(hass: HomeAssistant) -> list[BuiltinPic]:
             continue
         stem = f.stem.lower()
         nums = _NUM.findall(stem)
-        kind = "animation" if "anim" in stem else "image"
+        # GIFs are animations (e.g. 3.gif = built-in animation 3); so is anything named "anim..."
+        kind = "animation" if (f.suffix.lower() == ".gif" or "anim" in stem) else "image"
         out.append(BuiltinPic(kind, int(nums[-1]) if nums else None, f, f.relative_to(d).as_posix()))
     return out
 
