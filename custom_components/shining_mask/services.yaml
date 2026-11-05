@@ -49,7 +49,7 @@ show_face:
       default: diy
       selector:
         select:
-          options: [image, animation, diy]
+          options: [image, animation, diy, pack]
     value:
       required: true
       example: "1"
@@ -62,6 +62,27 @@ show_face:
       default: false
       selector:
         boolean:
+
+install_face_pack:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    folder:
+      required: true
+      example: "1"
+      selector:
+        text:
+    start_slot:
+      default: 10
+      selector:
+        number: { min: 1, max: 200, mode: box }
+    fit:
+      default: auto
+      selector:
+        select:
+          options: [auto, crop, scale]
 
 restore_selected:
   target:

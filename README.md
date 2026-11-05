@@ -57,7 +57,18 @@ State is *assumed* (the mask doesn't report back), so the entities show the last
 
 Any state can use a built-in image or animation instead (kind = image/animation).
 
-## 6. Face previews and a tap-to-show grid
+## 6. Your own assistant face (face packs)
+1. Put a folder of frames in `/config/assistant_face/<name>/` (e.g. `/config/assistant_face/1/`).
+   File names choose the role: `idle`, `listen`, `think`, `talk`/`speak` (several frames cycle in name
+   order), `error`/`sad`, `sleep`. Plain numbered frames (`1.bmp`, `2.bmp`, …): frame 1 is idle and
+   all frames cycle while talking. Missing roles fall back to idle.
+2. Run `shining_mask.install_face_pack` with `folder: "1"` (tick *return response* to see which
+   frame went to which slot). Frames go into DIY slots from 10 up (`start_slot`). `fit: auto` keeps
+   pixel art 1:1, centred, for frames drawn for the mask.
+3. In the voice-face automation, set the Listening / Thinking / Talking / Unavailable kinds (and Idle
+   if you like) to `pack`.
+
+## 7. Face previews and a tap-to-show grid
 - **`image.…_current_face`** shows what the mask is displaying: your DIY faces, plus built-in
   images and animations if you supply pictures of them.
 - **Built-in thumbnails:** put pictures (photos of the mask or app screenshots, kept for your own

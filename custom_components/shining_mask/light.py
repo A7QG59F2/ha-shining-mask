@@ -44,7 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     platform.async_register_entity_service(
         "show_face",
         {
-            vol.Required("kind"): vol.In(["image", "animation", "diy"]),
+            vol.Required("kind"): vol.In(["image", "animation", "diy", "pack"]),
             vol.Required("value"): cv.string,
             vol.Optional("speed"): cv.byte,
             vol.Optional("temporary", default=False): cv.boolean,
@@ -72,6 +72,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     )
     platform.async_register_entity_service("install_default_faces", {}, "svc_install_default_faces")
     platform.async_register_entity_service("restore_selected", {}, "svc_restore_selected")
+    platform.async_register_entity_service(
+        "install_face_pack",
+        {
+            vol.Required("folder"): cv.string,
+            vol.Optional("start_slot", default=10): vol.All(vol.Coerce(int), vol.Range(min=1, max=200)),
+            vol.Optional("fit", default="auto"): vol.In(["auto", "crop", "scale"]),
+        },
+        "svc_install_face_pack",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     platform.async_register_entity_service(
         "generate_dashboard",
         {vol.Optional("columns", default=4): vol.All(vol.Coerce(int), vol.Range(min=1, max=12))},
@@ -114,6 +124,8 @@ class MaskLight(MaskEntity, LightEntity):
             "text": s.text,
             "diy_image_count": s.diy_count,
             "selected_face": f"{s.selected[0]} {','.join(map(str, s.selected[1]))}" if s.selected else None,
+            "face_pack": s.pack_name,
+            "face_pack_roles": s.pack or None,
             "last_error": s.last_error,
             "gatt": s.gatt,
         }
@@ -135,6 +147,9 @@ class MaskLight(MaskEntity, LightEntity):
         await self.mask.async_play_diy(slots, speed)
 
     async def svc_show_face(self, kind: str, value: str, speed: int | None = None, temporary: bool = False) -> None:
+        if kind == "pack":
+            await self.mask.async_play_role(value.strip().lower(), speed)
+            return
         try:
             slots = _slots(value)
         except vol.Invalid as err:
@@ -145,6 +160,63 @@ class MaskLight(MaskEntity, LightEntity):
             await self.mask.async_show_animation(slots[0], temporary)
         else:
             await self.mask.async_play_diy(slots, speed, temporary)
+
+    async def svc_install_face_pack(self, folder: str, start_slot: int = 10, fit: str = "auto") -> dict[str, Any]:
+        from .facepack import list_packs, plan_pack, resolve_folder
+        from .graphics import fit_image
+
+        path = resolve_folder(self.hass, folder)
+        if not self.hass.config.is_allowed_path(str(path)):
+            raise ServiceValidationError(f"{path} is not inside an allowed folder")
+
+        def _plan():
+            if not path.is_dir():
+                raise ServiceValidationError(
+                    f"Folder {path} not found. Packs found: {', '.join(list_packs(self.hass)) or 'none'}"
+                )
+            return plan_pack(path)
+
+        try:
+            plan = await self.hass.async_add_executor_job(_plan)
+        except FileNotFoundError as err:
+            raise ServiceValidationError(str(err)) from err
+
+        # every distinct frame gets one slot, in role order
+        frame_slot: dict[str, int] = {}
+        next_slot = start_slot
+        for role in ("idle", "listening", "thinking", "talking", "error", "sleep"):
+            for f in plan.get(role, []):
+                key = str(f)
+                if key not in frame_slot:
+                    if next_slot == self.mask.blank_slot:
+                        next_slot += 1
+                    frame_slot[key] = next_slot
+                    next_slot += 1
+
+        def _loader(p):
+            def _load():
+                from PIL import Image
+
+                with Image.open(p) as img:
+                    img.seek(0)  # first frame of GIFs
+                    return fit_image(img, fit)
+
+            return _load
+
+        for f_str, slot in frame_slot.items():
+            await self._upload_canvas(slot, _loader(f_str))
+            self.mask.slot_names[slot] = f"{path.name}/{f_str.rsplit('/', 1)[-1]}"
+
+        pack = {role: [frame_slot[str(f)] for f in frames] for role, frames in plan.items()}
+        self.mask.state.pack = pack
+        self.mask.state.pack_name = path.name
+        self.mask.preview_changed()
+        await self.mask.async_play_role("idle")
+        return {
+            "pack": path.name,
+            "roles": {role: [f"slot {frame_slot[str(f)]}: {f.name}" for f in frames] for role, frames in plan.items()},
+            "slots_used": f"{start_slot}-{next_slot - 1}",
+        }
 
     async def svc_restore_selected(self) -> None:
         await self.mask.async_restore_selected()

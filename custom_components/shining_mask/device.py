@@ -39,6 +39,9 @@ class MaskState:
     last_error: str | None = None
     # the face last chosen by a person (dashboard / numbers / actions), not by the voice-face automation
     selected: tuple[str, list[int]] | None = None
+    # installed assistant face pack: role -> DIY slots
+    pack: dict[str, list[int]] = field(default_factory=dict)
+    pack_name: str | None = None
 
 
 class ShiningMask:
@@ -92,6 +95,8 @@ class ShiningMask:
         s.text_mode = data.get("text_mode", s.text_mode)
         s.speed = data.get("speed")
         self.slot_names = {int(k): v for k, v in data.get("slot_names", {}).items()}
+        s.pack = {r: [int(v) for v in slots] for r, slots in (data.get("pack") or {}).items()}
+        s.pack_name = data.get("pack_name")
 
     def _data_to_save(self) -> dict:
         s = self.state
@@ -106,6 +111,8 @@ class ShiningMask:
             "text_mode": s.text_mode,
             "speed": s.speed,
             "slot_names": {str(k): v for k, v in self.slot_names.items()},
+            "pack": s.pack,
+            "pack_name": s.pack_name,
         }
 
     # ------------------------------------------------------------ listeners
@@ -413,6 +420,16 @@ class ShiningMask:
             await self.async_show_animation(values[0], temporary=True)
         else:
             await self.async_play_diy(values, temporary=True)
+
+    async def async_play_role(self, role: str, speed: int | None = None) -> None:
+        """Show a face-pack role (idle/listening/thinking/talking/error/sleep); falls back to idle."""
+        pack = self.state.pack
+        if not pack:
+            raise HomeAssistantError("No face pack installed - run shining_mask.install_face_pack first")
+        slots = pack.get(role) or pack.get("idle")
+        if not slots:
+            raise HomeAssistantError(f"Face pack has no '{role}' or 'idle' frames")
+        await self.async_play_diy(slots, speed, temporary=True)
 
     async def async_play_diy(self, slots: Sequence[int], speed: int | None = None, temporary: bool = False) -> None:
         packets = []

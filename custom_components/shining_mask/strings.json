@@ -84,7 +84,7 @@
       "fields": {
         "kind": {
           "name": "Kind",
-          "description": "image, animation or diy."
+          "description": "image, animation, diy, or pack (value = idle/listening/thinking/talking/error/sleep)."
         },
         "value": {
           "name": "Value",
@@ -181,6 +181,24 @@
     "restore_selected": {
       "name": "Restore chosen face",
       "description": "Go back to the face a person last chose (dashboard, numbers or actions), ignoring voice-assistant faces."
+    },
+    "install_face_pack": {
+      "name": "Install face pack",
+      "description": "Upload a folder of frames from /config/assistant_face/<folder> as the assistant's face. File names choose the role (idle, listen, think, talk/speak, error, sleep); plain numbered frames: first = idle, all = talking.",
+      "fields": {
+        "folder": {
+          "name": "Folder",
+          "description": "Folder name inside /config/assistant_face (e.g. 1), or a full path."
+        },
+        "start_slot": {
+          "name": "First DIY slot",
+          "description": "Frames go into DIY slots starting here (default 10, after the built-in faces)."
+        },
+        "fit": {
+          "name": "Fit",
+          "description": "auto keeps pixel art 1:1 (best for frames drawn for the mask); scale shrinks big pictures."
+        }
+      }
     }
   }
 }

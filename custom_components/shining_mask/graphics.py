@@ -33,11 +33,22 @@ def render_text(text: str, color: Sequence[int] = (255, 255, 255)) -> tuple[byte
     return encode_text_columns(columns, colors)
 
 
-def fit_image(img: Image.Image) -> Image.Image:
-    """Fit any image into a 46x58 black canvas (letterboxed)."""
+def fit_image(img: Image.Image, mode: str = "scale") -> Image.Image:
+    """Fit an image into the 46x58 frame.
+
+    scale: shrink to fit, letterboxed (photos, big pictures)
+    crop:  keep pixels 1:1, centred; trims or pads edges (pixel art drawn for the mask)
+    auto:  crop when the image is within 16 px of the frame size, otherwise scale
+    """
     img = img.convert("RGB")
-    img.thumbnail((W, H), Image.Resampling.LANCZOS)
+    if mode == "auto":
+        mode = "crop" if abs(img.width - W) <= 16 and abs(img.height - H) <= 16 else "scale"
     canvas = Image.new("RGB", (W, H), (0, 0, 0))
+    if mode == "crop":
+        canvas.paste(img, ((W - img.width) // 2, (H - img.height) // 2))
+        return canvas
+    small = img.width <= 2 * W and img.height <= 2 * H
+    img.thumbnail((W, H), Image.Resampling.NEAREST if small else Image.Resampling.LANCZOS)
     canvas.paste(img, ((W - img.width) // 2, (H - img.height) // 2))
     return canvas
 
