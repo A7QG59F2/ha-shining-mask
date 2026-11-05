@@ -58,7 +58,7 @@ State is *assumed* (the mask doesn't report back), so the entities show the last
 Any state can use a built-in image or animation instead (kind = image/animation).
 
 ## 6. Your own assistant face (face packs)
-1. Put a folder of frames in `/config/assistant_face/<name>/` (e.g. `/config/assistant_face/1/`).
+1. Put a folder of frames in `/config/assistant_face/<name>/` or `/config/shining_mask/assistant_face/<name>/`.
    File names choose the role: `idle`, `listen`, `think`, `talk`/`speak` (several frames cycle in name
    order), `error`/`sad`, `sleep`. Plain numbered frames (`1.bmp`, `2.bmp`, …): frame 1 is idle and
    all frames cycle while talking. Missing roles fall back to idle.

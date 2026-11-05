@@ -162,12 +162,12 @@ class MaskLight(MaskEntity, LightEntity):
             await self.mask.async_play_diy(slots, speed, temporary)
 
     async def svc_install_face_pack(self, folder: str, start_slot: int = 10, fit: str = "auto") -> dict[str, Any]:
-        from .facepack import list_packs, plan_pack, resolve_folder
+        from .facepack import list_packs, path_allowed, plan_pack, resolve_folder
         from .graphics import fit_image
 
-        path = resolve_folder(self.hass, folder)
-        if not self.hass.config.is_allowed_path(str(path)):
-            raise ServiceValidationError(f"{path} is not inside an allowed folder")
+        path = await self.hass.async_add_executor_job(resolve_folder, self.hass, folder)
+        if not path_allowed(self.hass, path):
+            raise ServiceValidationError(f"{path} is outside the config folder and not in allowlist_external_dirs")
 
         def _plan():
             if not path.is_dir():
@@ -250,8 +250,10 @@ class MaskLight(MaskEntity, LightEntity):
             self.mask.slot_names[slot] = builtin
             self.mask.preview_changed()
         elif path:
-            if not self.hass.config.is_allowed_path(path):
-                raise ServiceValidationError(f"{path} is not in allowlist_external_dirs (use a path under /config or /media)")
+            from .facepack import path_allowed
+
+            if not path_allowed(self.hass, path):
+                raise ServiceValidationError(f"{path} is outside the config folder and not in allowlist_external_dirs")
 
             def _load():
                 from PIL import Image

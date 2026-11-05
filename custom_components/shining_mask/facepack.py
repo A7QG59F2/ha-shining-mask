@@ -37,14 +37,36 @@ def _natural_key(p: Path):
     return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", p.stem.lower())]
 
 
+def _roots(hass: HomeAssistant) -> list[Path]:
+    return [Path(hass.config.path(PACK_ROOT)), Path(hass.config.path("shining_mask", PACK_ROOT))]
+
+
 def resolve_folder(hass: HomeAssistant, folder: str) -> Path:
-    p = Path(folder)
-    return p if p.is_absolute() else Path(hass.config.path(PACK_ROOT, folder))
+    """Blocking. '1' -> /config/assistant_face/1 or /config/shining_mask/assistant_face/1."""
+    p = Path(folder.strip())
+    if p.is_absolute():
+        return p
+    for root in _roots(hass):
+        if (root / p).is_dir():
+            return root / p
+    return _roots(hass)[0] / p
 
 
 def list_packs(hass: HomeAssistant) -> list[str]:
-    root = Path(hass.config.path(PACK_ROOT))
-    return sorted((d.name for d in root.iterdir() if d.is_dir()), key=lambda n: _natural_key(Path(n))) if root.is_dir() else []
+    names = set()
+    for root in _roots(hass):
+        if root.is_dir():
+            names.update(d.name for d in root.iterdir() if d.is_dir())
+    return sorted(names, key=lambda n: _natural_key(Path(n)))
+
+
+def path_allowed(hass: HomeAssistant, path: Path | str) -> bool:
+    """Anything inside the HA config folder, or in allowlist_external_dirs."""
+    try:
+        Path(path).resolve().relative_to(Path(hass.config.config_dir).resolve())
+        return True
+    except ValueError:
+        return hass.config.is_allowed_path(str(path))
 
 
 def plan_pack(folder: Path) -> dict[str, list[Path]]:
