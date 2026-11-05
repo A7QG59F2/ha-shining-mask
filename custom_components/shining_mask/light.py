@@ -47,6 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             vol.Required("kind"): vol.In(["image", "animation", "diy"]),
             vol.Required("value"): cv.string,
             vol.Optional("speed"): cv.byte,
+            vol.Optional("temporary", default=False): cv.boolean,
         },
         "svc_show_face",
     )
@@ -70,6 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         "svc_upload_image",
     )
     platform.async_register_entity_service("install_default_faces", {}, "svc_install_default_faces")
+    platform.async_register_entity_service("restore_selected", {}, "svc_restore_selected")
     platform.async_register_entity_service(
         "generate_dashboard",
         {vol.Optional("columns", default=4): vol.All(vol.Coerce(int), vol.Range(min=1, max=12))},
@@ -111,6 +113,7 @@ class MaskLight(MaskEntity, LightEntity):
             "diy_slots": s.diy,
             "text": s.text,
             "diy_image_count": s.diy_count,
+            "selected_face": f"{s.selected[0]} {','.join(map(str, s.selected[1]))}" if s.selected else None,
             "last_error": s.last_error,
             "gatt": s.gatt,
         }
@@ -131,17 +134,20 @@ class MaskLight(MaskEntity, LightEntity):
     async def svc_play_diy(self, slots: list[int], speed: int | None = None) -> None:
         await self.mask.async_play_diy(slots, speed)
 
-    async def svc_show_face(self, kind: str, value: str, speed: int | None = None) -> None:
+    async def svc_show_face(self, kind: str, value: str, speed: int | None = None, temporary: bool = False) -> None:
         try:
             slots = _slots(value)
         except vol.Invalid as err:
             raise ServiceValidationError(f"Invalid value '{value}': use a number or comma list") from err
         if kind == "image":
-            await self.mask.async_show_image(slots[0])
+            await self.mask.async_show_image(slots[0], temporary)
         elif kind == "animation":
-            await self.mask.async_show_animation(slots[0])
+            await self.mask.async_show_animation(slots[0], temporary)
         else:
-            await self.mask.async_play_diy(slots, speed)
+            await self.mask.async_play_diy(slots, speed, temporary)
+
+    async def svc_restore_selected(self) -> None:
+        await self.mask.async_restore_selected()
 
     async def svc_set_text(self, text: str, color, mode: str, speed: int | None = None) -> None:
         await self.mask.async_set_text(text, color, TEXT_MODES[mode], speed)

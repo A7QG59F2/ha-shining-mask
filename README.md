@@ -47,7 +47,12 @@ State is *assumed* (the mask doesn't report back), so the entities show the last
    Pick the Show's `assist_satellite` entity and the mask.
    - idle → slot 1, listening → slot 2, thinking → slot 3
    - **talking → slots `4,5` cycling** (a flapping mouth), with adjustable speed
-   - unavailable → slot 6
+   - unavailable → slot 6, then after **N minutes** (default 3) either go black (`off`) or
+     go back to the face you last picked yourself (`restore`, the default)
+
+   Voice faces are shown as *temporary*, so they never replace your chosen face. Your choice
+   (dashboard tap, Image/Animation number, or an action) is in the light's `selected_face`
+   attribute, and `shining_mask.restore_selected` brings it back.
 
 Any state can use a built-in image or animation instead (kind = image/animation).
 

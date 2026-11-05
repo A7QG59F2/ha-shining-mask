@@ -33,6 +33,16 @@ blueprint:
       selector: { number: { min: 0, max: 255 } }
     error_kind: { name: Unavailable - kind, default: diy, selector: { select: { options: [image, animation, diy] } } }
     error_value: { name: Unavailable - value, default: "6", selector: { text: {} } }
+    unavailable_minutes:
+      name: Unavailable - give up after (minutes)
+      description: How long to show the unavailable face before doing the action below. 0 = never.
+      default: 3
+      selector: { number: { min: 0, max: 120, unit_of_measurement: min } }
+    unavailable_then:
+      name: Unavailable - then
+      description: "off: go black. restore: go back to the face you last picked yourself (dashboard, Image/Animation numbers)."
+      default: restore
+      selector: { select: { options: [restore, "off"] } }
 
 mode: restart
 max_exceeded: silent
@@ -49,6 +59,8 @@ variables:
     responding: { kind: !input responding_kind, value: !input responding_value }
     unavailable: { kind: !input error_kind, value: !input error_value }
   talk_speed: !input talk_speed
+  unavailable_minutes: !input unavailable_minutes
+  unavailable_then: !input unavailable_then
   state_key: >
     {% set s = trigger.to_state.state if trigger.to_state else 'unavailable' %}
     {{ s if s in faces else ('unavailable' if s in ['unavailable', 'unknown'] else 'idle') }}
@@ -65,4 +77,24 @@ actions:
       kind: "{{ faces[state_key].kind }}"
       value: "{{ faces[state_key].value }}"
       speed: "{{ talk_speed | int if state_key == 'responding' else 128 }}"
+      temporary: true
     continue_on_error: true
+  # mode: restart cancels this wait as soon as the satellite changes state again
+  - if:
+      - condition: template
+        value_template: "{{ state_key == 'unavailable' and (unavailable_minutes | int) > 0 }}"
+    then:
+      - delay:
+          minutes: "{{ unavailable_minutes | int }}"
+      - if:
+          - condition: template
+            value_template: "{{ unavailable_then == 'off' }}"
+        then:
+          - action: light.turn_off
+            target:
+              entity_id: !input mask
+        else:
+          - action: shining_mask.restore_selected
+            target:
+              entity_id: !input mask
+        continue_on_error: true

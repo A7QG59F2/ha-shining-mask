@@ -58,6 +58,16 @@ show_face:
     speed:
       selector:
         number: { min: 0, max: 255 }
+    temporary:
+      default: false
+      selector:
+        boolean:
+
+restore_selected:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
 
 set_text:
   target:

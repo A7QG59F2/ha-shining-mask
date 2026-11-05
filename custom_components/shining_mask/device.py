@@ -36,6 +36,8 @@ class MaskState:
     diy_count: int | None = None
     gatt: list[str] = field(default_factory=list)
     last_error: str | None = None
+    # the face last chosen by a person (dashboard / numbers / actions), not by the voice-face automation
+    selected: tuple[str, list[int]] | None = None
 
 
 class ShiningMask:
@@ -351,19 +353,33 @@ class ShiningMask:
             await self.async_send(p.cmd_brightness(self._scale(self.state.brightness or 255)))
             self.state.is_on = True
 
-    async def async_show_image(self, index: int) -> None:
+    async def async_show_image(self, index: int, temporary: bool = False) -> None:
         await self._wake()
         await self.async_send(p.cmd_image(index))
         self.state.image, self.state.animation, self.state.diy = index, None, []
+        if not temporary:
+            self.state.selected = ("image", [index])
         self._notify_listeners()
 
-    async def async_show_animation(self, index: int) -> None:
+    async def async_show_animation(self, index: int, temporary: bool = False) -> None:
         await self._wake()
         await self.async_send(p.cmd_animation(index))
         self.state.animation, self.state.image, self.state.diy = index, None, []
+        if not temporary:
+            self.state.selected = ("animation", [index])
         self._notify_listeners()
 
-    async def async_play_diy(self, slots: Sequence[int], speed: int | None = None) -> None:
+    async def async_restore_selected(self) -> None:
+        """Go back to the face a person last chose (falls back to DIY slot 1)."""
+        kind, values = self.state.selected or ("diy", [1])
+        if kind == "image":
+            await self.async_show_image(values[0], temporary=True)
+        elif kind == "animation":
+            await self.async_show_animation(values[0], temporary=True)
+        else:
+            await self.async_play_diy(values, temporary=True)
+
+    async def async_play_diy(self, slots: Sequence[int], speed: int | None = None, temporary: bool = False) -> None:
         packets = []
         if speed is not None:
             packets.append(p.cmd_speed(speed))
@@ -373,6 +389,8 @@ class ShiningMask:
         self.state.diy, self.state.image, self.state.animation = list(slots), None, None
         if speed is not None:
             self.state.speed = speed
+        if not temporary and slots != [self.blank_slot]:
+            self.state.selected = ("diy", list(slots))
         self._notify_listeners()
 
     async def async_set_speed(self, speed: int) -> None:

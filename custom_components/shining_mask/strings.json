@@ -93,6 +93,10 @@
         "speed": {
           "name": "Speed",
           "description": "DIY cycle speed."
+        },
+        "temporary": {
+          "name": "Temporary",
+          "description": "Don't remember this as the chosen face (used by the voice-face automation)."
         }
       }
     },
@@ -173,6 +177,10 @@
           "description": "Thumbnails per row on the card (the panel view uses double)."
         }
       }
+    },
+    "restore_selected": {
+      "name": "Restore chosen face",
+      "description": "Go back to the face a person last chose (dashboard, numbers or actions), ignoring voice-assistant faces."
     }
   }
 }
