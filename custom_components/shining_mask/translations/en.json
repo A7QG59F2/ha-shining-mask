@@ -165,8 +165,14 @@
       }
     },
     "generate_dashboard": {
-      "name": "Generate dashboard card",
-      "description": "Build a tap-to-show grid of face thumbnails (your DIY faces plus pictures in /config/shining_mask/builtin). Writes /config/shining_mask/dashboard_card.yaml and returns the card."
+      "name": "Generate dashboard",
+      "description": "Build tap-to-show thumbnail grids (your DIY faces plus pictures in /config/shining_mask/builtin). Writes dashboard_card.yaml (a card) and dashboard_panel_view.yaml (a full panel view) in /config/shining_mask/.",
+      "fields": {
+        "columns": {
+          "name": "Columns",
+          "description": "Thumbnails per row on the card (the panel view uses double)."
+        }
+      }
     }
   }
 }

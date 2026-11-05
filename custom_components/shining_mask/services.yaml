@@ -114,6 +114,11 @@ generate_dashboard:
     entity:
       integration: shining_mask
       domain: light
+  fields:
+    columns:
+      default: 4
+      selector:
+        number: { min: 1, max: 12 }
 
 delete_diy:
   target:

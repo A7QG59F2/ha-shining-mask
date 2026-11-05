@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant
 
 ROOT = "shining_mask"
 URL_ROOT = "/shining_mask"
-IMAGE_EXTS = {".png", ".webp", ".jpg", ".jpeg", ".gif"}
+IMAGE_EXTS = {".png", ".webp", ".jpg", ".jpeg", ".gif", ".bmp"}
 DATA_STATIC = "shining_mask_static_registered"
 PREVIEW_SCALE = 6
 
@@ -128,7 +128,9 @@ def _card(image_url: str, action: str, data: dict, entity_id: str, label: str) -
     }
 
 
-def build_dashboard(hass: HomeAssistant, entity_id: str, slot_names: dict[int, str], blank_slot: int) -> tuple[dict, list[str]]:
+def build_dashboard(
+    hass: HomeAssistant, entity_id: str, slot_names: dict[int, str], blank_slot: int, columns: int = 4
+) -> tuple[dict, list[str]]:
     """Blocking: build a Lovelace vertical-stack card; returns (card, unassigned file names)."""
     diy = scan_diy(hass)
     builtin = scan_builtin(hass)
@@ -141,7 +143,7 @@ def build_dashboard(hass: HomeAssistant, entity_id: str, slot_names: dict[int, s
         if slot != blank_slot
     ]
     if diy_cards:
-        sections += [{"type": "heading", "heading": "My faces"}, {"type": "grid", "columns": 4, "square": True, "cards": diy_cards}]
+        sections += [{"type": "heading", "heading": "My faces"}, {"type": "grid", "columns": columns, "square": True, "cards": diy_cards}]
 
     for kind, title, action, field in (
         ("image", "Built-in images", "shining_mask.show_image", "image"),
@@ -150,7 +152,7 @@ def build_dashboard(hass: HomeAssistant, entity_id: str, slot_names: dict[int, s
         pics = sorted((p for p in builtin if p.kind == kind and p.number is not None), key=lambda p: p.number)
         if pics:
             cards = [_card(p.url, action, {field: p.number}, entity_id, f"{title[:-1]} {p.number}") for p in pics]
-            sections += [{"type": "heading", "heading": title}, {"type": "grid", "columns": 4, "square": True, "cards": cards}]
+            sections += [{"type": "heading", "heading": title}, {"type": "grid", "columns": columns, "square": True, "cards": cards}]
 
     unassigned = [p for p in builtin if p.number is None]
     if unassigned:
@@ -158,6 +160,6 @@ def build_dashboard(hass: HomeAssistant, entity_id: str, slot_names: dict[int, s
         cards = [{"type": "picture", "image": p.url, "alt_text": p.rel, "tap_action": {"action": "none"}} for p in unassigned[:120]]
         sections += [
             {"type": "heading", "heading": "Unsorted (rename with a number to make tappable)"},
-            {"type": "grid", "columns": 6, "square": True, "cards": cards},
+            {"type": "grid", "columns": columns + 2, "square": True, "cards": cards},
         ]
     return {"type": "vertical-stack", "cards": sections}, [p.rel for p in unassigned]

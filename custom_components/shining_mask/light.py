@@ -71,7 +71,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     )
     platform.async_register_entity_service("install_default_faces", {}, "svc_install_default_faces")
     platform.async_register_entity_service(
-        "generate_dashboard", {}, "svc_generate_dashboard", supports_response=SupportsResponse.OPTIONAL
+        "generate_dashboard",
+        {vol.Optional("columns", default=4): vol.All(vol.Coerce(int), vol.Range(min=1, max=12))},
+        "svc_generate_dashboard",
+        supports_response=SupportsResponse.OPTIONAL,
     )
     platform.async_register_entity_service("delete_diy", {vol.Required("slots"): _slots}, "svc_delete_diy")
     platform.async_register_entity_service(
@@ -193,20 +196,40 @@ class MaskLight(MaskEntity, LightEntity):
             self.mask.slot_names[slot] = name
         await self.mask.async_check()
 
-    async def svc_generate_dashboard(self) -> dict[str, Any]:
+    async def svc_generate_dashboard(self, columns: int = 4) -> dict[str, Any]:
         import yaml
 
         from .previews import build_dashboard, builtin_dir, root, scan_builtin
 
         def _build():
-            card, unassigned = build_dashboard(self.hass, self.entity_id, self.mask.slot_names, self.mask.blank_slot)
-            text = yaml.safe_dump(card, sort_keys=False, allow_unicode=True)
-            out = root(self.hass) / "dashboard_card.yaml"
-            out.write_text(text)
-            return card, unassigned, str(out), str(builtin_dir(self.hass)), len(scan_builtin(self.hass))
+            dump = lambda obj: yaml.safe_dump(obj, sort_keys=False, allow_unicode=True)  # noqa: E731
+            card, unassigned = build_dashboard(self.hass, self.entity_id, self.mask.slot_names, self.mask.blank_slot, columns)
+            # a full-width panel view: wider grids, current-face preview + brightness on top
+            panel_card, _ = build_dashboard(self.hass, self.entity_id, self.mask.slot_names, self.mask.blank_slot, columns * 2)
+            face_entity = self.entity_id.replace("light.", "image.", 1) + "_current_face"
+            panel_card["cards"][0:0] = [
+                {
+                    "type": "horizontal-stack",
+                    "cards": [
+                        {"type": "picture-entity", "entity": face_entity, "show_state": False, "show_name": True, "name": "Now showing"},
+                        {"type": "tile", "entity": self.entity_id, "features": [{"type": "light-brightness"}]},
+                    ],
+                }
+            ]
+            view = {"title": "Mask", "path": "mask", "icon": "mdi:drama-masks", "type": "panel", "cards": [panel_card]}
+            base = root(self.hass)
+            (base / "dashboard_card.yaml").write_text(dump(card))
+            (base / "dashboard_panel_view.yaml").write_text(dump(view))
+            return card, unassigned, str(base), str(builtin_dir(self.hass)), len(scan_builtin(self.hass))
 
-        card, unassigned, out, folder, found = await self.hass.async_add_executor_job(_build)
-        return {"file": out, "builtin_folder": folder, "builtin_pictures_found": found, "unassigned_builtin_files": unassigned, "card": card}
+        card, unassigned, base, folder, found = await self.hass.async_add_executor_job(_build)
+        return {
+            "card_file": f"{base}/dashboard_card.yaml",
+            "panel_view_file": f"{base}/dashboard_panel_view.yaml",
+            "builtin_folder": folder,
+            "builtin_pictures_found": found,
+            "unassigned_builtin_files": unassigned,
+        }
 
     async def svc_delete_diy(self, slots: list[int]) -> None:
         await self.mask.async_delete_diy(slots)
