@@ -12,6 +12,10 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 
 from .const import (
+    CONF_BLANK_SLOT,
+    CONF_MAX_BRIGHTNESS,
+    DEFAULT_BLANK_SLOT,
+    DEFAULT_MAX_BRIGHTNESS,
     CONF_DISCONNECT_AFTER,
     CONF_MAX_ANIMATION,
     CONF_MAX_IMAGE,
@@ -137,6 +141,12 @@ class ShiningMaskOptionsFlow(OptionsFlow):
                         vol.Coerce(int), vol.Range(min=1, max=255)
                     ),
                     vol.Required(CONF_MAX_ANIMATION, default=o.get(CONF_MAX_ANIMATION, DEFAULT_MAX_ANIMATION)): vol.All(
+                        vol.Coerce(int), vol.Range(min=1, max=255)
+                    ),
+                    vol.Required(CONF_MAX_BRIGHTNESS, default=o.get(CONF_MAX_BRIGHTNESS, DEFAULT_MAX_BRIGHTNESS)): vol.All(
+                        vol.Coerce(int), vol.Range(min=1, max=255)
+                    ),
+                    vol.Required(CONF_BLANK_SLOT, default=o.get(CONF_BLANK_SLOT, DEFAULT_BLANK_SLOT)): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=255)
                     ),
                 }

@@ -36,7 +36,9 @@
           "disconnect_after": "Disconnect after idle seconds (0 = stay connected)",
           "pixel_order": "DIY image pixel order (change if uploaded faces look scrambled)",
           "max_image": "Highest built-in image number",
-          "max_animation": "Highest built-in animation number"
+          "max_animation": "Highest built-in animation number",
+          "max_brightness": "Mask brightness at 100% (raw 1-255; flicker starts around 200)",
+          "blank_slot": "DIY slot used for the black 'off' frame"
         }
       }
     }

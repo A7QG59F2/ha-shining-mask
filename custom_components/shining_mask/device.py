@@ -39,12 +39,24 @@ class MaskState:
 
 
 class ShiningMask:
-    def __init__(self, hass: HomeAssistant, address: str, name: str, disconnect_after: int, pixel_order: str) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        address: str,
+        name: str,
+        disconnect_after: int,
+        pixel_order: str,
+        max_brightness: int = 160,
+        blank_slot: int = 9,
+    ) -> None:
         self.hass = hass
         self.address = address
         self.name = name
         self.disconnect_after = disconnect_after
         self.pixel_order = pixel_order
+        self.max_brightness = max(1, min(255, max_brightness))
+        self.blank_slot = blank_slot
+        self._blank_uploaded = False
         self.state = MaskState()
         self._ble_device: BLEDevice | None = None
         self._client: BleakClientWithServiceCache | None = None
@@ -274,27 +286,72 @@ class ShiningMask:
             self._schedule_idle_disconnect()
 
     # ------------------------------------------------------------ high level
+    def _scale(self, value: int) -> int:
+        """Map HA brightness 1-255 onto the mask's usable 1..max_brightness."""
+        if value <= 0:
+            return 0
+        return max(1, round(value * self.max_brightness / 255))
+
     async def async_set_brightness(self, value: int) -> None:
-        await self.async_send(p.cmd_brightness(value))
-        if value > 0:
-            self.state.brightness = value
-        self.state.is_on = value > 0
+        if value <= 0:
+            await self.async_turn_off()
+            return
+        await self.async_send(p.cmd_brightness(self._scale(value)))
+        was_off = not self.state.is_on
+        self.state.brightness = value
+        self.state.is_on = True
+        if was_off:
+            await self._restore_face()
         self._notify_listeners()
 
     async def async_turn_on(self, brightness: int | None = None) -> None:
         await self.async_set_brightness(brightness or self.state.brightness or 255)
 
+    async def _ensure_blank(self) -> None:
+        if self._blank_uploaded:
+            return
+        from .graphics import face_blank, image_to_payload
+
+        payload = await self.hass.async_add_executor_job(lambda: image_to_payload(face_blank(), self.pixel_order))
+        await self.async_upload_image(self.blank_slot, payload)
+        self._blank_uploaded = True
+
     async def async_turn_off(self) -> None:
-        await self.async_send(p.cmd_brightness(0))
+        """The mask has no power-off command: show an all-black DIY frame at minimum brightness."""
+        try:
+            await self._ensure_blank()
+            await self.async_send(p.cmd_brightness(0), p.cmd_play([self.blank_slot]))
+        except HomeAssistantError:
+            await self.async_send(p.cmd_brightness(0))
+            raise
         self.state.is_on = False
         self._notify_listeners()
 
+    async def _restore_face(self) -> None:
+        s = self.state
+        if s.diy:
+            await self.async_send(p.cmd_play(s.diy))
+        elif s.animation is not None:
+            await self.async_send(p.cmd_animation(s.animation))
+        elif s.image is not None:
+            await self.async_send(p.cmd_image(s.image))
+        else:
+            await self.async_send(p.cmd_image(1))
+
+    async def _wake(self) -> None:
+        """Showing something while 'off' turns the light back on."""
+        if not self.state.is_on:
+            await self.async_send(p.cmd_brightness(self._scale(self.state.brightness or 255)))
+            self.state.is_on = True
+
     async def async_show_image(self, index: int) -> None:
+        await self._wake()
         await self.async_send(p.cmd_image(index))
         self.state.image, self.state.animation, self.state.diy = index, None, []
         self._notify_listeners()
 
     async def async_show_animation(self, index: int) -> None:
+        await self._wake()
         await self.async_send(p.cmd_animation(index))
         self.state.animation, self.state.image, self.state.diy = index, None, []
         self._notify_listeners()
@@ -304,6 +361,7 @@ class ShiningMask:
         if speed is not None:
             packets.append(p.cmd_speed(speed))
         packets.append(p.cmd_play(list(slots)))
+        await self._wake()
         await self.async_send(*packets)
         self.state.diy, self.state.image, self.state.animation = list(slots), None, None
         if speed is not None:
@@ -324,6 +382,7 @@ class ShiningMask:
         from .graphics import render_text  # Pillow import off the event-loop hot path
 
         payload, bitmap_len = await self.hass.async_add_executor_job(render_text, text, color)
+        await self._wake()
         await self.async_upload(p.cmd_upload_start_text(len(payload), bitmap_len), payload)
         extra = []
         if mode is not None:
@@ -339,6 +398,8 @@ class ShiningMask:
         if len(payload) != p.IMAGE_BYTES:
             raise HomeAssistantError(f"Image payload must be {p.IMAGE_BYTES} bytes")
         await self.async_upload(p.cmd_upload_start_image(len(payload), slot), payload)
+        if slot == self.blank_slot:
+            self._blank_uploaded = payload == bytes(len(payload))
 
     async def async_delete_diy(self, slots: Sequence[int]) -> None:
         for i in range(0, len(slots), 10):

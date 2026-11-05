@@ -101,7 +101,7 @@ upload_image:
     builtin:
       selector:
         select:
-          options: [idle, listening, thinking, talk_closed, talk_open, error, sleep, test_pattern]
+          options: [idle, listening, thinking, talk_closed, talk_open, error, sleep, test_pattern, blank]
 
 install_default_faces:
   target:

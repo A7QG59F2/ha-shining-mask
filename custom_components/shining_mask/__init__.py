@@ -9,8 +9,12 @@ from homeassistant.core import HomeAssistant, callback
 
 from .const import (
     CONF_DISCONNECT_AFTER,
+    CONF_BLANK_SLOT,
+    CONF_MAX_BRIGHTNESS,
     CONF_PIXEL_ORDER,
+    DEFAULT_BLANK_SLOT,
     DEFAULT_DISCONNECT_AFTER,
+    DEFAULT_MAX_BRIGHTNESS,
     DEFAULT_PIXEL_ORDER,
 )
 from .device import ShiningMask
@@ -28,6 +32,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
         entry.title,
         entry.options.get(CONF_DISCONNECT_AFTER, DEFAULT_DISCONNECT_AFTER),
         entry.options.get(CONF_PIXEL_ORDER, DEFAULT_PIXEL_ORDER),
+        entry.options.get(CONF_MAX_BRIGHTNESS, DEFAULT_MAX_BRIGHTNESS),
+        entry.options.get(CONF_BLANK_SLOT, DEFAULT_BLANK_SLOT),
     )
     if dev := bluetooth.async_ble_device_from_address(hass, address, connectable=True):
         mask.set_ble_device(dev)

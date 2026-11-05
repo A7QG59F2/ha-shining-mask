@@ -120,6 +120,10 @@ def face_error():
     return img
 
 
+def face_blank():
+    return _new()[0]
+
+
 def face_test_pattern():
     """Orientation check: red top-left, green top-right, blue bottom-left, white arrow up."""
     img, d = _new()
@@ -140,6 +144,7 @@ BUILTIN_FACES = {
     "error": face_error,
     "sleep": face_sleep,
     "test_pattern": face_test_pattern,
+    "blank": face_blank,
 }
 
 # Slot layout used by install_default_faces and the blueprint defaults.
