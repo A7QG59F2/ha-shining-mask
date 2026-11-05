@@ -6,7 +6,8 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.components.light import ATTR_BRIGHTNESS, ColorMode, LightEntity
+from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_RGB_COLOR, ColorMode, LightEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_platform
@@ -31,7 +32,8 @@ RGB = vol.All(vol.ExactSequence((cv.byte, cv.byte, cv.byte)), vol.Coerce(tuple))
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([MaskLight(entry.runtime_data)])
+    mask = entry.runtime_data
+    async_add_entities([MaskLight(mask), MaskTextColorLight(mask), MaskBackgroundLight(mask)])
     platform = entity_platform.async_get_current_platform()
 
     platform.async_register_entity_service("show_image", {vol.Required("image"): SLOT}, "svc_show_image")
@@ -323,3 +325,68 @@ class MaskLight(MaskEntity, LightEntity):
             await self.mask.async_raw(command.upper(), raw)
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err
+
+
+class _ColorLight(MaskEntity, LightEntity):
+    """RGB colour setting shown as a light: on = custom colour enabled, colour picker = the colour."""
+
+    _attr_color_mode = ColorMode.RGB
+    _attr_supported_color_modes = {ColorMode.RGB}
+    _attr_assumed_state = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _key = ""
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, self._key)
+
+    def _get(self) -> tuple[list[int], bool]:
+        raise NotImplementedError
+
+    async def _set(self, rgb, enable: bool) -> None:
+        raise NotImplementedError
+
+    @property
+    def is_on(self) -> bool:
+        return self._get()[1]
+
+    @property
+    def rgb_color(self):
+        return tuple(self._get()[0])
+
+    @property
+    def brightness(self) -> int:
+        return 255
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        rgb = kwargs.get(ATTR_RGB_COLOR) or self._get()[0]
+        if ATTR_BRIGHTNESS in kwargs:  # brightness slider dims the colour itself
+            scale = kwargs[ATTR_BRIGHTNESS] / 255
+            rgb = [round(c * scale) for c in rgb]
+        await self._set(list(rgb), True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._set(None, False)
+
+
+class MaskTextColorLight(_ColorLight):
+    _attr_name = "Text color"
+    _attr_icon = "mdi:format-color-text"
+    _key = "text_color"
+
+    def _get(self):
+        return self.mask.state.text_color, self.mask.state.text_color_on
+
+    async def _set(self, rgb, enable):
+        await self.mask.async_set_text_color(rgb, enable)
+
+
+class MaskBackgroundLight(_ColorLight):
+    _attr_name = "Text background color"
+    _attr_icon = "mdi:format-color-fill"
+    _key = "bg_color"
+
+    def _get(self):
+        return self.mask.state.bg_color, self.mask.state.bg_color_on
+
+    async def _set(self, rgb, enable):
+        await self.mask.async_set_bg_color(rgb, enable)

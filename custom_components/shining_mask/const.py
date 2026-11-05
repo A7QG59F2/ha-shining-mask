@@ -22,3 +22,16 @@ TEXT_MODES = {
     "scroll_left": 3,
     "scroll_right": 4,
 }
+
+# "M" command: 0-3 text gradients, 4-7 background animations
+TEXT_EFFECTS = {
+    "solid": None,
+    "gradient_1": 0,
+    "gradient_2": 1,
+    "gradient_3": 2,
+    "gradient_4": 3,
+    "background_1": 4,
+    "background_2": 5,
+    "background_3": 6,
+    "background_4": 7,
+}

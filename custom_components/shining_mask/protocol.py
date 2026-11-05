@@ -118,8 +118,9 @@ def cmd_front_color(rgb: Sequence[int], enable: bool = True) -> bytes:
     return build_command("FC", [int(enable), *rgb[:3]])
 
 
-def cmd_back_color(rgb: Sequence[int], enable: bool = True) -> bytes:
-    return build_command("BG", [int(enable), *rgb[:3]])
+def cmd_back_color(rgb: Sequence[int], enable: bool = True, tag: str = "BG") -> bytes:
+    """Sources disagree on BG vs BC; the integration sends both (unknown commands are ignored)."""
+    return build_command(tag, [int(enable), *rgb[:3]])
 
 
 def cmd_text_color_mode(mode: int, enable: bool = True) -> bytes:

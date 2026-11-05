@@ -27,6 +27,9 @@ Turn the mask on. It advertises as `MASK-xxxx` and HA should discover it
 | `number.…_speed` | Animation/DIY/text speed |
 | `select.…_text_mode` | steady / blink / scroll left / scroll right |
 | `text.…_text` | Type text to upload and show it |
+| `light.…_text_color` | Text colour (on = custom colour, colour picker = colour) |
+| `light.…_text_background_color` | Background colour behind text |
+| `select.…_text_effect` | `solid`, `gradient_1`–`4` (text gradients), `background_1`–`4` (animated backgrounds) |
 
 State is *assumed* (the mask doesn't report back), so the entities show the last value you sent.
 

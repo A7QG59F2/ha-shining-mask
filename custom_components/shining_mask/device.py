@@ -42,6 +42,12 @@ class MaskState:
     # installed assistant face pack: role -> DIY slots
     pack: dict[str, list[int]] = field(default_factory=dict)
     pack_name: str | None = None
+    # text appearance (app: text colour, background colour, effects)
+    text_color: list[int] = field(default_factory=lambda: [255, 255, 255])
+    text_color_on: bool = False
+    bg_color: list[int] = field(default_factory=lambda: [0, 0, 0])
+    bg_color_on: bool = False
+    text_effect: str = "solid"
 
 
 class ShiningMask:
@@ -97,6 +103,11 @@ class ShiningMask:
         self.slot_names = {int(k): v for k, v in data.get("slot_names", {}).items()}
         s.pack = {r: [int(v) for v in slots] for r, slots in (data.get("pack") or {}).items()}
         s.pack_name = data.get("pack_name")
+        s.text_color = list(data.get("text_color", s.text_color))
+        s.text_color_on = bool(data.get("text_color_on", False))
+        s.bg_color = list(data.get("bg_color", s.bg_color))
+        s.bg_color_on = bool(data.get("bg_color_on", False))
+        s.text_effect = data.get("text_effect", "solid")
 
     def _data_to_save(self) -> dict:
         s = self.state
@@ -113,6 +124,11 @@ class ShiningMask:
             "slot_names": {str(k): v for k, v in self.slot_names.items()},
             "pack": s.pack,
             "pack_name": s.pack_name,
+            "text_color": s.text_color,
+            "text_color_on": s.text_color_on,
+            "bg_color": s.bg_color,
+            "bg_color_on": s.bg_color_on,
+            "text_effect": s.text_effect,
         }
 
     # ------------------------------------------------------------ listeners
@@ -448,6 +464,24 @@ class ShiningMask:
     async def async_set_speed(self, speed: int) -> None:
         await self.async_send(p.cmd_speed(speed))
         self.state.speed = speed
+        self._notify_listeners()
+
+    async def async_set_text_color(self, rgb: Sequence[int] | None, enable: bool) -> None:
+        rgb = list(rgb) if rgb is not None else self.state.text_color
+        await self.async_send(p.cmd_front_color(rgb, enable))
+        self.state.text_color, self.state.text_color_on = rgb, enable
+        self._notify_listeners()
+
+    async def async_set_bg_color(self, rgb: Sequence[int] | None, enable: bool) -> None:
+        rgb = list(rgb) if rgb is not None else self.state.bg_color
+        await self.async_send(p.cmd_back_color(rgb, enable, "BG"), p.cmd_back_color(rgb, enable, "BC"))
+        self.state.bg_color, self.state.bg_color_on = rgb, enable
+        self._notify_listeners()
+
+    async def async_set_text_effect(self, name: str, value: int | None) -> None:
+        # solid = effects off
+        await self.async_send(p.cmd_text_color_mode(value or 0, value is not None))
+        self.state.text_effect = name
         self._notify_listeners()
 
     async def async_set_text_mode(self, mode_name: str, mode_value: int) -> None:
