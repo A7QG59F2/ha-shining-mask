@@ -196,17 +196,17 @@ class MaskLight(MaskEntity, LightEntity):
     async def svc_generate_dashboard(self) -> dict[str, Any]:
         import yaml
 
-        from .previews import build_dashboard, root
+        from .previews import build_dashboard, builtin_dir, root, scan_builtin
 
         def _build():
             card, unassigned = build_dashboard(self.hass, self.entity_id, self.mask.slot_names, self.mask.blank_slot)
             text = yaml.safe_dump(card, sort_keys=False, allow_unicode=True)
             out = root(self.hass) / "dashboard_card.yaml"
             out.write_text(text)
-            return card, unassigned, str(out)
+            return card, unassigned, str(out), str(builtin_dir(self.hass)), len(scan_builtin(self.hass))
 
-        card, unassigned, out = await self.hass.async_add_executor_job(_build)
-        return {"file": out, "unassigned_builtin_files": unassigned, "card": card}
+        card, unassigned, out, folder, found = await self.hass.async_add_executor_job(_build)
+        return {"file": out, "builtin_folder": folder, "builtin_pictures_found": found, "unassigned_builtin_files": unassigned, "card": card}
 
     async def svc_delete_diy(self, slots: list[int]) -> None:
         await self.mask.async_delete_diy(slots)

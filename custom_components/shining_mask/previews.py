@@ -72,9 +72,13 @@ class BuiltinPic:
     number: int | None
     path: Path
 
+    rel: str = ""
+
     @property
     def url(self) -> str:
-        return f"{URL_ROOT}/builtin/{self.path.name}"
+        from urllib.parse import quote
+
+        return f"{URL_ROOT}/builtin/{quote(self.rel or self.path.name)}"
 
 
 _NUM = re.compile(r"(\d+)")
@@ -86,13 +90,13 @@ def scan_builtin(hass: HomeAssistant) -> list[BuiltinPic]:
     d = builtin_dir(hass)
     if not d.is_dir():
         return out
-    for f in sorted(d.iterdir()):
+    for f in sorted(d.rglob("*")):  # subfolders included
         if f.suffix.lower() not in IMAGE_EXTS or not f.is_file():
             continue
         stem = f.stem.lower()
         nums = _NUM.findall(stem)
         kind = "animation" if "anim" in stem else "image"
-        out.append(BuiltinPic(kind, int(nums[-1]) if nums else None, f))
+        out.append(BuiltinPic(kind, int(nums[-1]) if nums else None, f, f.relative_to(d).as_posix()))
     return out
 
 
@@ -148,5 +152,12 @@ def build_dashboard(hass: HomeAssistant, entity_id: str, slot_names: dict[int, s
             cards = [_card(p.url, action, {field: p.number}, entity_id, f"{title[:-1]} {p.number}") for p in pics]
             sections += [{"type": "heading", "heading": title}, {"type": "grid", "columns": 4, "square": True, "cards": cards}]
 
-    unassigned = [p.path.name for p in builtin if p.number is None]
-    return {"type": "vertical-stack", "cards": sections}, unassigned
+    unassigned = [p for p in builtin if p.number is None]
+    if unassigned:
+        # shown so you can see them; rename to 3.png / anim_2.png etc. to make them tappable
+        cards = [{"type": "picture", "image": p.url, "alt_text": p.rel, "tap_action": {"action": "none"}} for p in unassigned[:120]]
+        sections += [
+            {"type": "heading", "heading": "Unsorted (rename with a number to make tappable)"},
+            {"type": "grid", "columns": 6, "square": True, "cards": cards},
+        ]
+    return {"type": "vertical-stack", "cards": sections}, [p.rel for p in unassigned]
