@@ -79,7 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     platform.async_register_entity_service(
         "rhythm",
         {
-            vol.Optional("mode", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=4)),
+            vol.Optional("mode", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=5)),
             vol.Required("levels"): cv.string,
             vol.Optional("interval", default=0.08): vol.All(vol.Coerce(float), vol.Range(min=0.02, max=2)),
         },
