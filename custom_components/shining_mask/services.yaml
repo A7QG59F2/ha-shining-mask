@@ -243,6 +243,18 @@ generate_dashboard:
       selector:
         number: { min: 1, max: 12 }
 
+reset_mask:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    confirm:
+      required: true
+      default: false
+      selector:
+        boolean:
+
 delete_diy:
   target:
     entity:

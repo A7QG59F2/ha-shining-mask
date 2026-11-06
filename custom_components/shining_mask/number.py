@@ -24,6 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             MaskBarsTuneNumber(mask, "bars_bass", "Visualizer bass", "mdi:speaker", 0, 200, 5, "%"),
             MaskBarsTuneNumber(mask, "bars_mid", "Visualizer mid", "mdi:speaker", 0, 200, 5, "%"),
             MaskBarsTuneNumber(mask, "bars_treble", "Visualizer treble", "mdi:speaker", 0, 200, 5, "%"),
+            MaskClockSpeedNumber(mask),
         ]
     )
 
@@ -134,3 +135,25 @@ class MaskBarsTuneNumber(MaskEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         v = round(float(value), 2) if self._key == "bars_contrast" else int(value)
         self.mask.set_visualizer_tuning(**{self._key: v})
+
+
+class MaskClockSpeedNumber(MaskEntity, NumberEntity):
+    """How fast the clock flips between its two frames (colon blink, sky movement)."""
+
+    _attr_name = "Clock speed"
+    _attr_icon = "mdi:clock-fast"
+    _attr_native_min_value = 0
+    _attr_native_max_value = 255
+    _attr_native_step = 1
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "clock_speed")
+
+    @property
+    def native_value(self):
+        return self.mask.state.clock_speed
+
+    async def async_set_native_value(self, value: float) -> None:
+        self.mask.set_clock_option(clock_speed=int(value))
+        if self.mask.clock and self.mask.clock.showing:
+            await self.mask.async_set_speed(int(value))  # apply now, not just next minute

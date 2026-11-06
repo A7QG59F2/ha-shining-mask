@@ -13,7 +13,8 @@ from .entity import MaskEntity
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([MaskGestureSwitch(entry.runtime_data), MaskVisualizerSwitch(entry.runtime_data)])
+    mask = entry.runtime_data
+    async_add_entities([MaskGestureSwitch(mask), MaskVisualizerSwitch(mask), MaskClockSwitch(mask)])
 
 
 class MaskGestureSwitch(MaskEntity, SwitchEntity):
@@ -68,3 +69,28 @@ class MaskVisualizerSwitch(MaskEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.mask.async_set_visualizer(False)
+
+
+class MaskClockSwitch(MaskEntity, SwitchEntity):
+    """Clock screen as the chosen face: sky with sun/moon and weather, 24-hour time, temperature.
+
+    On: the clock becomes the face the mask goes back to (assistant faces and music bars still
+    take over and give it back). Off: back to the face chosen before the clock.
+    """
+
+    _attr_name = "Clock"
+    _attr_icon = "mdi:clock-digital"
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "clock")
+
+    @property
+    def is_on(self) -> bool:
+        sel = self.mask.state.selected
+        return bool(sel) and sel[0] == "clock"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.mask.async_set_clock(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.mask.async_set_clock(False)

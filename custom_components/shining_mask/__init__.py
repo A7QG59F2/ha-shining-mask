@@ -15,6 +15,7 @@ from .const import (
     CONF_MAX_BRIGHTNESS,
     CONF_PIXEL_ORDER,
     CONF_VISUALIZER_PORT,
+    CLOCK_FIRST_SLOT,
     DEFAULT_BLANK_SLOT,
     DEFAULT_VISUALIZER_PORT,
     DEFAULT_DISCONNECT_AFTER,
@@ -58,6 +59,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
             bluetooth.BluetoothScanningMode.PASSIVE,
         )
     )
+    # clock screen: ticks every minute but only draws while it is the face on screen
+    from .clock import MaskClock
+
+    mask.clock = MaskClock(hass, mask, CLOCK_FIRST_SLOT)
+    mask.clock.start()
+    entry.async_on_unload(mask.clock.stop)
     entry.runtime_data = mask
     await async_register_static(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

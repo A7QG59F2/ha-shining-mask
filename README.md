@@ -27,6 +27,7 @@ Entity names start with their section, so the device page groups them:
 | Section | Entities |
 |---|---|
 | Mask | the mask light (on/off + brightness), Face now showing (preview) |
+| Clock | Clock (on = clock is the chosen face), Clock weather, Clock speed |
 | Face | Face image, Face animation, Face speed |
 | Text | Text, Text effect, Text mode, Text color, Text background color |
 | Visualizer | Visualizer (on/off), style, sensitivity, contrast, bass, mid, treble, delay |
@@ -42,6 +43,26 @@ response*). It writes `/config/shining_mask/settings_card.yaml`. Paste that into
 *Add card → Manual*.
 
 State is *assumed* (the mask doesn't report back), so the entities show the last value you sent.
+
+## Clock screen
+Turn on the **Clock** switch to make a live clock the face the mask goes back to. It has:
+- a sky strip where the sun moves along an arc from sunrise (left) to sunset (right), with the sky
+  colour following the sun. At night the moon takes its place, drawn in its current phase. The
+  moon's path is estimated from its phase.
+- weather from the **Clock weather** entity drawn over the sky: drifting clouds, rain, snow,
+  lightning, fog, and stars on clear nights.
+- the 24-hour time with a blinking colon, the temperature (coloured from cold blue to hot red),
+  and the day and date.
+
+The mask can't draw on its own, so the integration uploads the next minute (2 frames) into DIY
+slots 46-49 at :35 and switches to it exactly on the minute. It only does this while the clock
+is on screen. Assistant faces and music bars still take over and hand the screen back to the
+clock. **Clock speed** sets how fast the two frames alternate.
+
+## Reset
+`shining_mask.reset_mask` (with `confirm: true`) deletes every uploaded DIY image: face pack,
+effects, clock frames and default faces. It also turns off text colours, effects and gestures,
+clears the previews, and shows built-in image 1. Built-in images and animations can't be removed.
 
 ## Animated effects
 `shining_mask.install_effect` draws an effect, uploads its frames to DIY slots (default 30 onward)

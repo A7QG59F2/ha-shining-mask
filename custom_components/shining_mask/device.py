@@ -64,6 +64,10 @@ class MaskState:
     bars_bass: int = 100  # %
     bars_mid: int = 100
     bars_treble: int = 100
+    # clock screen (see clock.py)
+    clock_weather: str | None = None  # weather entity for the sky and temperature
+    clock_speed: int = 230  # playback speed of the clock's two frames (colon blink)
+    clock_prev: tuple[str, list[int]] | None = None  # chosen face before the clock was switched on
 
 
 class ShiningMask:
@@ -91,6 +95,7 @@ class ShiningMask:
         self._blank_uploaded = False
         self.slot_names: dict[int, str] = {}
         self.visualizer = None  # MaskVisualizer when the music visualizer is on
+        self.clock = None  # MaskClock, set up by __init__.py
         self.music_hold = False  # True while the voice assistant face is showing
         self._bars_live = False  # the mask is currently in rhythm (music bars) mode
         self._restoring = False
@@ -148,6 +153,10 @@ class ShiningMask:
         for key in ("bars_sensitivity", "bars_bass", "bars_mid", "bars_treble"):
             setattr(s, key, int(data.get(key, 100)))
         s.bars_contrast = float(data.get("bars_contrast", 1.6))
+        s.clock_weather = data.get("clock_weather")
+        s.clock_speed = int(data.get("clock_speed", 230))
+        if prev := data.get("clock_prev"):
+            s.clock_prev = (prev[0], [int(v) for v in prev[1]])
 
     def _data_to_save(self) -> dict:
         """The parts of the state that survive a restart (written to .storage)."""
@@ -183,6 +192,9 @@ class ShiningMask:
             "bars_bass": s.bars_bass,
             "bars_mid": s.bars_mid,
             "bars_treble": s.bars_treble,
+            "clock_weather": s.clock_weather,
+            "clock_speed": s.clock_speed,
+            "clock_prev": [s.clock_prev[0], s.clock_prev[1]] if s.clock_prev else None,
         }
 
     # ------------------------------------------------------------ listeners
@@ -547,6 +559,9 @@ class ShiningMask:
             await self.async_set_music_hold(False)
         if self.bars_on_top and not force:
             return
+        if kind == "clock" and self.clock is not None:
+            await self.clock.async_show()  # shows the last minute at once, then refreshes it
+            return
         self._restoring = True
         try:
             if kind == "image":
@@ -557,6 +572,27 @@ class ShiningMask:
                 await self.async_play_diy(values, temporary=True)
         finally:
             self._restoring = False
+
+    async def async_set_clock(self, on: bool) -> None:
+        """Make the clock the chosen face (on), or go back to the face chosen before it (off)."""
+        s = self.state
+        is_clock = bool(s.selected) and s.selected[0] == "clock"
+        if on and not is_clock:
+            s.clock_prev = s.selected
+            s.selected = ("clock", [])
+        elif not on and is_clock:
+            s.selected = s.clock_prev or ("diy", [1])
+        else:
+            return
+        self._notify_listeners()
+        await self.async_restore_selected()
+
+    def set_clock_option(self, **values) -> None:
+        """clock_weather (entity id) and/or clock_speed; used from the next minute on."""
+        for key in ("clock_weather", "clock_speed"):
+            if key in values:
+                setattr(self.state, key, values[key])
+        self._notify_listeners()
 
     async def async_play_role(self, role: str, speed: int | None = None) -> None:
         """Show a face-pack role (idle/listening/thinking/talking/error/sleep); falls back to idle."""
@@ -606,8 +642,9 @@ class ShiningMask:
         self._notify_listeners()
 
     async def async_set_text_effect(self, name: str, value: int | None) -> None:
-        # solid = effects off
-        """Text effect: solid, colour gradients, or animated backgrounds (M command)."""
+        """Text effect: solid, colour gradients, or animated backgrounds (M command).
+
+        value None = solid (effects off)."""
         await self.async_send(p.cmd_text_color_mode(value or 0, value is not None))
         self.state.text_effect = name
         self._notify_listeners()
@@ -780,6 +817,29 @@ class ShiningMask:
         """Delete DIY slots from the mask (DELE command)."""
         for i in range(0, len(slots), 10):
             await self.async_send(p.cmd_delete(list(slots[i : i + 10])))
+
+    async def async_reset(self) -> None:
+        """Back to a clean mask: delete every uploaded DIY image and switch extras off.
+
+        Built-in images/animations live in the mask's firmware and can't be removed. Also clears
+        what the integration remembers about uploads (face pack, slot names, clock buffers).
+        """
+        from .const import TEXT_EFFECTS
+
+        await self.async_delete_diy(list(range(1, 256)))  # DELE takes 10 slots per packet
+        await self.async_set_text_color(None, False)
+        await self.async_set_bg_color(None, False)
+        await self.async_set_text_effect("solid", TEXT_EFFECTS.get("solid"))
+        await self.async_set_gesture(enable=False)
+        s = self.state
+        s.pack, s.pack_name = {}, None
+        s.gesture_gallery_items, s.gesture_diy_items = [], []
+        s.selected, s.clock_prev, s.diy = ("image", [1]), None, []
+        self.slot_names.clear()
+        self._blank_uploaded = False  # 'off' re-uploads its black frame when next needed
+        if self.clock is not None:
+            self.clock.forget_uploads()
+        await self.async_show_image(1)
 
     async def async_check(self) -> int | None:
         """Ask the mask how many DIY images it holds (CHEC); the answer arrives as a notification."""

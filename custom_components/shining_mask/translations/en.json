@@ -149,6 +149,13 @@
       "name": "Install default faces",
       "description": "Upload the voice-assistant faces to DIY slots 1-7 (idle, listening, thinking, talk closed, talk open, error, sleep)."
     },
+    "reset_mask": {
+      "name": "Reset mask",
+      "description": "Delete every uploaded DIY image (face pack, effects, clock, default faces), turn off text colours, effects and gestures, clear previews, and show built-in image 1. Built-in images can't be removed.",
+      "fields": {
+        "confirm": { "name": "Confirm", "description": "Must be on - this can't be undone." }
+      }
+    },
     "delete_diy": {
       "name": "Delete DIY images",
       "description": "Delete uploaded DIY images.",

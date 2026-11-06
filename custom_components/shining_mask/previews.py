@@ -30,7 +30,7 @@ def root(hass: HomeAssistant) -> Path:
 
 
 def diy_dir(hass: HomeAssistant) -> Path:
-    """Where previews of uploaded DIY slots are kept (slot_N.png)."""
+    """Where previews of uploaded DIY slots are kept (<slot>.png)."""
     return root(hass) / "diy"
 
 

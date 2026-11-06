@@ -13,7 +13,7 @@ from .entity import MaskEntity
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     m = entry.runtime_data
-    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m)])
+    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m), MaskClockWeatherSelect(m)])
 
 
 class MaskTextModeSelect(MaskEntity, SelectEntity):
@@ -105,3 +105,34 @@ class MaskBarsStyleSelect(MaskEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         self.mask.set_visualizer_tuning(style=BAR_STYLES[option])
+
+
+class MaskClockWeatherSelect(MaskEntity, SelectEntity):
+    """Which weather entity drives the clock's sky (condition) and temperature."""
+
+    _attr_name = "Clock weather"
+    _attr_icon = "mdi:weather-partly-cloudy"
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "clock_weather")
+
+    @property
+    def options(self) -> list[str]:
+        found = sorted(self.hass.states.async_entity_ids("weather")) if self.hass else []
+        return found or ["none"]
+
+    @property
+    def current_option(self) -> str | None:
+        chosen = self.mask.state.clock_weather
+        if chosen in self.options:
+            return chosen
+        # nothing chosen yet: prefer weather.home, else the first weather entity
+        return "weather.home" if "weather.home" in self.options else self.options[0]
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_clock_option(clock_weather=None if option == "none" else option)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if self.mask.state.clock_weather is None and self.current_option != "none":
+            self.mask.set_clock_option(clock_weather=self.current_option)  # remember the default

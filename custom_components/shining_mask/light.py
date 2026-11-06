@@ -124,6 +124,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         "svc_generate_dashboard",
         supports_response=SupportsResponse.OPTIONAL,
     )
+    platform.async_register_entity_service(
+        "reset_mask", {vol.Required("confirm"): vol.All(cv.boolean, True)}, "svc_reset_mask"
+    )
     platform.async_register_entity_service("delete_diy", {vol.Required("slots"): _slots}, "svc_delete_diy")
     platform.async_register_entity_service(
         "send_command",
@@ -487,6 +490,8 @@ class MaskLight(MaskEntity, LightEntity):
             "type": "vertical-stack",
             "cards": [
                 section("Mask", [("light", "light", "Mask"), ("image", "current_face", "Now showing")]),
+                section("Clock", [("switch", "clock", "Clock face"), ("select", "clock_weather", "Weather"),
+                                  ("number", "clock_speed", "Blink speed")]),
                 section("Face", [("number", "image", "Image"), ("number", "animation", "Animation"),
                                  ("number", "speed", "Speed")]),
                 section("Text", [("text", "text", "Text"), ("select", "text_effect", "Effect"),
@@ -501,6 +506,22 @@ class MaskLight(MaskEntity, LightEntity):
                 gesture,
             ],
         }
+
+    async def svc_reset_mask(self, confirm: bool) -> None:
+        """Action: delete every uploaded DIY image, switch extras off, clear previews."""
+        from .previews import diy_dir
+
+        await self.mask.async_reset()
+
+        def _clear_previews() -> None:
+            folder = diy_dir(self.hass)
+            if folder.is_dir():
+                for f in folder.glob("*.png"):
+                    if f.stem.isdigit():  # previews are named <slot>.png
+                        f.unlink(missing_ok=True)
+
+        await self.hass.async_add_executor_job(_clear_previews)
+        self.mask.preview_changed()
 
     async def svc_delete_diy(self, slots: list[int]) -> None:
         """Action: delete DIY slots."""
