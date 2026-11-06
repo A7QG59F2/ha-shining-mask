@@ -209,3 +209,8 @@ shawnrancatore/shining-mask, bishopfox/shining-mask.
 - The DIY frame is 8004 bytes (46×58 RGB, inferred from Bishop Fox's upload). Pixel order is the one unverified detail; that's what the test pattern checks.
 - Speed direction (higher = faster or slower) and the number of built-in images/animations vary by mask firmware.
 - Only control your own mask. The protocol has no pairing, so the integration only talks to the address you set up.
+
+## Credits
+- [brickcraftdream/shining-mask-stuff](https://github.com/brickcraftdream/shining-mask-stuff): BLE protocol
+  notes. Built-in id ranges (images up to 105, animations up to 69), the 10-slot PLAY limit, safe text
+  width, brightness/flicker advice, and the text effect descriptions come from there.

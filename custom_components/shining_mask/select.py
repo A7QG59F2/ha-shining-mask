@@ -51,7 +51,7 @@ class MaskTextModeSelect(MaskEntity, SelectEntity):
 
 
 class MaskTextEffectSelect(MaskEntity, SelectEntity):
-    """Text gradients (gradient_1-4) and background animations behind text (background_1-4)."""
+    """Colour effects on the text (dots, rainbow edges, fades) and built-in backgrounds behind it (background_1-4)."""
 
     _attr_name = "Text effect"
     _attr_icon = "mdi:gradient-horizontal"

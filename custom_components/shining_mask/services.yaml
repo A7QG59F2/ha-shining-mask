@@ -226,7 +226,7 @@ install_effect:
     frames:
       default: 8
       selector:
-        number: { min: 4, max: 30 }
+        number: { min: 4, max: 10 }
     speed:
       default: 200
       selector:

@@ -148,7 +148,9 @@ class ShiningMask:
         s.text_color_on = bool(data.get("text_color_on", False))
         s.bg_color = list(data.get("bg_color", s.bg_color))
         s.bg_color_on = bool(data.get("bg_color_on", False))
-        s.text_effect = data.get("text_effect", "solid")
+        old_names = {"gradient_1": "dots_on_white", "gradient_2": "rainbow_edges",
+                     "gradient_3": "yellow_to_blue", "gradient_4": "green_blue_circle"}  # before 0.22
+        s.text_effect = old_names.get(data.get("text_effect", "solid"), data.get("text_effect", "solid"))
         s.gesture_on = bool(data.get("gesture_on", False))
         s.gesture_library = data.get("gesture_library", "all")
         s.gesture_circulation = data.get("gesture_circulation", "order")

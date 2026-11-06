@@ -115,7 +115,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         {
             vol.Optional("effect", default="matrix"): vol.In(["matrix"]),
             vol.Optional("start_slot", default=1): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
-            vol.Optional("frames", default=8): vol.All(vol.Coerce(int), vol.Range(min=4, max=30)),
+            # PLAY takes at most 10 slots, so an effect is at most 10 frames
+            vol.Optional("frames", default=8): vol.All(vol.Coerce(int), vol.Range(min=4, max=10)),
             vol.Optional("speed", default=200): cv.byte,
         },
         "svc_install_effect",

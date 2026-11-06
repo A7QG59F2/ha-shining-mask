@@ -14,6 +14,9 @@ except ImportError:  # imported standalone by tools/mask_cli.py
 W, H = IMAGE_WIDTH, IMAGE_HEIGHT
 
 
+MAX_TEXT_COLUMNS = 512  # wider text bitmaps can hang the mask (same as const.MAX_TEXT_COLUMNS)
+
+
 def render_text(text: str, color: Sequence[int] = (255, 255, 255)) -> tuple[bytes, int]:
     """Render text into the mask's 16-px-high text format. Returns (payload, bitmap_len)."""
     try:
@@ -22,6 +25,8 @@ def render_text(text: str, color: Sequence[int] = (255, 255, 255)) -> tuple[byte
         font = ImageFont.load_default()
     left, top, right, bottom = font.getbbox(text)
     width = max(1, right + 1)
+    if width > MAX_TEXT_COLUMNS:  # very wide bitmaps can hang the mask
+        raise ValueError(f"Text too long for the mask ({width} px wide, max {MAX_TEXT_COLUMNS})")
     img = Image.new("L", (width, TEXT_HEIGHT), 0)
     draw = ImageDraw.Draw(img)
     # vertically centre the glyph box in 16 rows
