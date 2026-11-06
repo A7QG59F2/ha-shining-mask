@@ -54,9 +54,30 @@ async def async_register_static(hass: HomeAssistant) -> None:
         [
             StaticPathConfig(f"{URL_ROOT}/diy", str(diy_dir(hass)), False),
             StaticPathConfig(f"{URL_ROOT}/builtin", str(builtin_dir(hass)), False),
+            # the picture-uploader panel's code
+            StaticPathConfig(f"{URL_ROOT}/frontend", str(Path(__file__).parent / "frontend"), False),
         ]
     )
     hass.data[DATA_STATIC] = True
+    await _register_panel(hass)
+
+
+async def _register_panel(hass: HomeAssistant) -> None:
+    """Sidebar panel 'Mask pictures': crop any photo and send it to the mask (admins only)."""
+    from homeassistant.components import panel_custom
+
+    js = Path(__file__).parent / "frontend" / "mask-uploader.js"
+    stamp = int((await hass.async_add_executor_job(js.stat)).st_mtime)  # browser cache-buster
+    await panel_custom.async_register_panel(
+        hass,
+        webcomponent_name="shining-mask-uploader",
+        frontend_url_path="shining-mask",
+        module_url=f"{URL_ROOT}/frontend/mask-uploader.js?v={stamp}",
+        sidebar_title="Mask pictures",
+        sidebar_icon="mdi:drama-masks",
+        require_admin=True,
+        config={},
+    )
 
 
 def save_diy_preview(hass: HomeAssistant, slot: int, canvas) -> None:

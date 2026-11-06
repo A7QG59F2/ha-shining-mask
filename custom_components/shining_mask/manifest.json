@@ -13,8 +13,10 @@
   "config_flow": true,
   "dependencies": [
     "bluetooth_adapters",
+    "frontend",
     "http",
     "network",
+    "panel_custom",
     "zeroconf"
   ],
   "documentation": "https://github.com/A7QG59F2/ha-shining-mask",
@@ -24,5 +26,5 @@
   "requirements": [
     "aiosendspin==10.3.0"
   ],
-  "version": "0.26.0"
+  "version": "0.27.0"
 }

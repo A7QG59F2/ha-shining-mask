@@ -898,7 +898,7 @@ class ShiningMask:
 
     # ------------------------------------------------------------- DIY slot allocation
     # Lower = overwritten first. pack/blank (and your chosen DIY face) are never overwritten.
-    OWNER_RANK = {None: 0, "other": 1, "effect": 2, "clock": 3, "digits": 3}
+    OWNER_RANK = {None: 0, "other": 1, "photo": 1, "effect": 2, "clock": 3, "digits": 3}
     PROTECTED = ("pack", "blank")
 
     def slot_owner(self, slot: int) -> str | None:

@@ -45,6 +45,18 @@ response*). It writes `/config/shining_mask/settings_card.yaml`. Paste that into
 
 State is *assumed* (the mask doesn't report back), so the entities show the last value you sent.
 
+## Picture uploader (sidebar: **Mask pictures**)
+A panel in the Home Assistant sidebar (admins only) for putting any photo on the mask:
+- Drop, paste or choose a picture. Drag to move it and scroll or pinch to zoom; there's also a
+  rotate slider. The mask outline is drawn on top, including the eye holes and the bottom corners,
+  which have no LEDs.
+- Brightness, contrast and colour sliders, with a **live LED preview** of exactly what the mask will show.
+- **Show on mask** (temporary) or **Set as chosen face**. The slot is picked automatically and never
+  overwrites the assistant's faces, or you can choose one yourself.
+
+The picture is shrunk to 46x58 in the browser and sent with `shining_mask.upload_image` (`data:`
+base64), so nothing has to be copied to `/config`. Without `slot`, the action picks one and returns it.
+
 ## Clock screen
 Turn on the **Clock** switch to make a live clock the face the mask goes back to. It has:
 - a sky strip where the sun moves along an arc from sunrise (left) to sunset (right), with the sky

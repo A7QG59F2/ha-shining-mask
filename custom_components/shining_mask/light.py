@@ -70,7 +70,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     platform.async_register_entity_service(
         "upload_image",
         {
-            vol.Required("slot"): SLOT,
+            # no slot = pick one automatically (never the face pack or the black 'off' frame)
+            vol.Optional("slot"): SLOT,
             vol.Exclusive("path", "source"): cv.string,
             vol.Exclusive("builtin", "source"): cv.string,
             # image file contents as base64 (PNG/BMP/...), for tools that can't write to /config
@@ -78,6 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             vol.Optional("name"): cv.string,
         },
         "svc_upload_image",
+        supports_response=SupportsResponse.OPTIONAL,
     )
     platform.async_register_entity_service("install_default_faces", {}, "svc_install_default_faces")
     platform.async_register_entity_service("restore_selected", {}, "svc_restore_selected")
@@ -369,14 +371,20 @@ class MaskLight(MaskEntity, LightEntity):
 
     async def svc_upload_image(
         self,
-        slot: int,
+        slot: int | None = None,
         path: str | None = None,
         builtin: str | None = None,
         data: str | None = None,
         name: str | None = None,
     ) -> None:
-        """Action: upload a picture (file in /config, base64 data, or built-in face) into a DIY slot."""
+        """Action: upload a picture (file in /config, base64 data, or built-in face) into a DIY slot.
+
+        Returns {"slot": n}, useful when the slot was picked automatically.
+        """
         from .graphics import BUILTIN_FACES, fit_image
+
+        if slot is None:
+            slot = self.mask.allocate_slots(1, "photo")[0]
 
         if data:
             import base64
@@ -396,12 +404,12 @@ class MaskLight(MaskEntity, LightEntity):
                     return fit_image(img)
 
             try:
-                await self._upload_canvas(slot, _load_data)
+                await self._upload_canvas(slot, _load_data, owner="photo")
             except OSError as err:
                 raise HomeAssistantError(f"Could not read image data: {err}") from err
             self.mask.slot_names[slot] = name or "uploaded"
             self.mask.preview_changed()
-            return
+            return {"slot": slot}
         if builtin:
             if builtin not in BUILTIN_FACES:
                 raise ServiceValidationError(f"Unknown builtin face; choose from {', '.join(BUILTIN_FACES)}")
@@ -421,13 +429,14 @@ class MaskLight(MaskEntity, LightEntity):
                     return fit_image(img)
 
             try:
-                await self._upload_canvas(slot, _load)
+                await self._upload_canvas(slot, _load, owner="photo")
             except OSError as err:
                 raise HomeAssistantError(f"Could not read image {path}: {err}") from err
             self.mask.slot_names[slot] = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
             self.mask.preview_changed()
         else:
-            raise ServiceValidationError("Provide either path or builtin")
+            raise ServiceValidationError("Provide path, data or builtin")
+        return {"slot": slot}
 
     async def svc_install_default_faces(self) -> None:
         """Action: upload the built-in assistant faces into DIY slots 1-7."""
