@@ -198,10 +198,18 @@ class MaskVisualizer:
         self._latest = bars
         self._last_frame_at = self.hass.loop.time()
 
+    def pause_for_assist(self) -> None:
+        """The assistant's face is taking over: stop sending bars, don't restore any face."""
+        self._latest = None
+        self._active = False
+
     async def _send_loop(self) -> None:
         while True:
             await asyncio.sleep(SEND_INTERVAL)
             now = self.hass.loop.time()
+            if self.mask.music_hold:
+                self._latest = None  # drop frames while the assistant face is up
+                continue
             if self._latest is not None and now - self._last_frame_at < IDLE_RESTORE_S:
                 bars, self._latest = self._latest, None
                 try:
@@ -214,6 +222,8 @@ class MaskVisualizer:
 
     async def _end_bars(self) -> None:
         self._active = False
+        if self.mask.music_hold:
+            return  # never cover the assistant face
         try:
             await self.mask.async_exit_rhythm()
         except Exception as err:  # noqa: BLE001

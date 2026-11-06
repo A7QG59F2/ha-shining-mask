@@ -83,6 +83,7 @@ class ShiningMask:
         self._blank_uploaded = False
         self.slot_names: dict[int, str] = {}
         self.visualizer = None  # MaskVisualizer when the music visualizer is on
+        self.music_hold = False  # True while the voice assistant face is showing
         self.visualizer_port = 8928
         self.preview_version = 0
         self.state = MaskState()
@@ -561,6 +562,14 @@ class ShiningMask:
             viz, self.visualizer = self.visualizer, None
             await viz.async_stop()
         self.state.visualizer_on = on
+        self._notify_listeners()
+
+    @callback
+    def set_music_hold(self, hold: bool) -> None:
+        """Voice assistant active: music bars pause so its face always wins."""
+        self.music_hold = hold
+        if hold and self.visualizer is not None:
+            self.visualizer.pause_for_assist()
         self._notify_listeners()
 
     def set_visualizer_tuning(self, **values) -> None:

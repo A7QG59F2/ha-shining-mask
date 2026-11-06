@@ -138,6 +138,17 @@ set_gesture:
       selector:
         text:
 
+set_music_hold:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    hold:
+      required: true
+      selector:
+        boolean:
+
 restore_selected:
   target:
     entity:

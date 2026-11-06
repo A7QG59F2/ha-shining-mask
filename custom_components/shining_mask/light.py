@@ -74,6 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     )
     platform.async_register_entity_service("install_default_faces", {}, "svc_install_default_faces")
     platform.async_register_entity_service("restore_selected", {}, "svc_restore_selected")
+    platform.async_register_entity_service("set_music_hold", {vol.Required("hold"): cv.boolean}, "svc_set_music_hold")
     platform.async_register_entity_service("loop_animations", {}, "svc_loop_animations")
     platform.async_register_entity_service(
         "rhythm",
@@ -275,6 +276,9 @@ class MaskLight(MaskEntity, LightEntity):
             if len(item_list) > 7:
                 raise ServiceValidationError("Gesture face switch takes at most 7 pictures")
         await self.mask.async_set_gesture(enabled, library, circulation, item_list)
+
+    async def svc_set_music_hold(self, hold: bool) -> None:
+        self.mask.set_music_hold(hold)
 
     async def svc_restore_selected(self) -> None:
         await self.mask.async_restore_selected()

@@ -248,6 +248,16 @@
           "description": "For gallery/diy: up to 7 image or DIY slot numbers, comma-separated."
         }
       }
+    },
+    "set_music_hold": {
+      "name": "Hold music bars",
+      "description": "Pause the music bars while the voice assistant face is shown (used by the voice-face blueprint).",
+      "fields": {
+        "hold": {
+          "name": "Hold",
+          "description": "On while the assistant is listening/thinking/talking."
+        }
+      }
     }
   }
 }
