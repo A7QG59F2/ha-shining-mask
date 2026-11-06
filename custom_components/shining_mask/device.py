@@ -542,6 +542,9 @@ class ShiningMask:
         """Go back to the face a person last chose (falls back to DIY slot 1).
         While music bars are up this does nothing: the chosen face returns when the music stops."""
         kind, values = self.state.selected or ("diy", [1])
+        # going back to the chosen face means the assistant is done: let the music bars back in
+        if self.music_hold:
+            await self.async_set_music_hold(False)
         if self.bars_on_top and not force:
             return
         self._restoring = True

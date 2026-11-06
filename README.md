@@ -117,8 +117,10 @@ playback, to Sendspin "visualizer" clients. The mask can be one of those clients
 - `number.…_music_bars_delay`: shift the bars later (+) or earlier (−) if they don't line up with
   what you hear (e.g. a speaker that adds its own delay).
 - **Who owns the screen** (highest first):
-  1. **Assistant face** - listening / thinking / talking (the voice-face blueprint holds the bars off with
-     `shining_mask.set_music_hold`; the mask leaves bar mode before the face is sent).
+  1. **Assistant face** - listening / thinking / talking. Any temporary face (`show_face` with
+     `temporary: true`) holds the bars off until the chosen face comes back, so this works even with
+     an older copy of the blueprint. Pack roles idle, sleep and error don't hold. Override with
+     `hold_music`. The light's `assistant_face_holding_music` attribute shows whether the hold is on.
   2. **Music bars** - whenever music is playing to the mask.
   3. **Your chosen face** - the one you picked yourself (dashboard, Image/Animation numbers).
 - When the assistant finishes and music is still playing, the bars come straight back (the idle face

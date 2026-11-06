@@ -50,6 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             vol.Required("value"): cv.string,
             vol.Optional("speed"): cv.byte,
             vol.Optional("temporary", default=False): cv.boolean,
+            vol.Optional("hold_music"): cv.boolean,
         },
         "svc_show_face",
     )
@@ -148,6 +149,7 @@ class MaskLight(MaskEntity, LightEntity):
             "diy_slots": s.diy,
             "text": s.text,
             "diy_image_count": s.diy_count,
+            "assistant_face_holding_music": self.mask.music_hold,
             "selected_face": f"{s.selected[0]} {','.join(map(str, s.selected[1]))}" if s.selected else None,
             "face_pack": s.pack_name,
             "face_pack_roles": s.pack or None,
@@ -174,8 +176,26 @@ class MaskLight(MaskEntity, LightEntity):
         """Action: play DIY slots, optionally at a speed."""
         await self.mask.async_play_diy(slots, speed)
 
-    async def svc_show_face(self, kind: str, value: str, speed: int | None = None, temporary: bool = False) -> None:
-        """Action: show any kind of face; temporary=True for assistant faces that shouldn't stick."""
+    async def svc_show_face(
+        self,
+        kind: str,
+        value: str,
+        speed: int | None = None,
+        temporary: bool = False,
+        hold_music: bool | None = None,
+    ) -> None:
+        """Action: show any kind of face; temporary=True for assistant faces that shouldn't stick.
+
+        A temporary face is the assistant's, and the assistant beats the music bars. So unless the
+        caller says otherwise (hold_music), a temporary face holds the bars off until the chosen
+        face comes back (restore_selected) or set_music_hold(false). Pack roles 'idle', 'sleep'
+        and 'error' don't hold: the assistant isn't busy then. This makes the priority work even
+        with an older copy of the voice-face blueprint that never calls set_music_hold.
+        """
+        if temporary:
+            role = value.strip().lower() if kind == "pack" else None
+            hold = hold_music if hold_music is not None else role not in ("idle", "sleep", "error")
+            await self.mask.async_set_music_hold(hold)
         if kind == "pack":
             await self.mask.async_play_role(value.strip().lower(), speed)
             return

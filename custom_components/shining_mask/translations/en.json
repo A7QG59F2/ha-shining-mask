@@ -98,6 +98,10 @@
         "temporary": {
           "name": "Temporary",
           "description": "Don't remember this as the chosen face (used by the voice-face automation)."
+        },
+        "hold_music": {
+          "name": "Hold music bars",
+          "description": "Keep the music bars off while this face shows. Default: on for temporary faces, except pack roles idle, sleep and error."
         }
       }
     },

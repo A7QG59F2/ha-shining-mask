@@ -112,6 +112,8 @@ actions:
           value: "{{ pack_roles[state_key] if faces[state_key].kind == 'pack' else faces[state_key].value }}"
           speed: "{{ talk_speed | int if state_key == 'responding' else 128 }}"
           temporary: true
+          # assistant busy -> its face beats the music bars; idle/error faces let the bars back
+          hold_music: "{{ state_key in ['listening', 'processing', 'responding'] }}"
         continue_on_error: true
   # mode: restart cancels these waits as soon as the satellite changes state again
   - if:

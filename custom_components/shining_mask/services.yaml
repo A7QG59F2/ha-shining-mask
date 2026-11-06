@@ -62,6 +62,9 @@ show_face:
       default: false
       selector:
         boolean:
+    hold_music:
+      selector:
+        boolean:
 
 install_face_pack:
   target:
