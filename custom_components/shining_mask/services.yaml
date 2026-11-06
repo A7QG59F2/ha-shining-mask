@@ -208,6 +208,30 @@ install_default_faces:
       integration: shining_mask
       domain: light
 
+install_effect:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    effect:
+      default: matrix
+      selector:
+        select:
+          options: [matrix]
+    start_slot:
+      default: 30
+      selector:
+        number: { min: 1, max: 250 }
+    frames:
+      default: 16
+      selector:
+        number: { min: 4, max: 48 }
+    speed:
+      default: 200
+      selector:
+        number: { min: 0, max: 255 }
+
 generate_dashboard:
   target:
     entity:

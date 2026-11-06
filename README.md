@@ -43,6 +43,13 @@ response*). It writes `/config/shining_mask/settings_card.yaml`. Paste that into
 
 State is *assumed* (the mask doesn't report back), so the entities show the last value you sent.
 
+## Animated effects
+`shining_mask.install_effect` draws an effect, uploads its frames to DIY slots (default 30 onward)
+and plays it. Uploading takes a few seconds per frame, and you only do it once. After that it's a
+normal DIY sequence: play it again with `play_diy` or from the dashboard.
+- **matrix** - green "digital rain" falling down the mask, with bright heads, fading trails and
+  flickering pixels. It loops seamlessly.
+
 ## 4. Actions (target the mask's light entity)
 `shining_mask.show_image`, `show_animation`, `play_diy`, `show_face`, `set_text`,
 `upload_image` (file under /config or a built-in face), `install_default_faces`,

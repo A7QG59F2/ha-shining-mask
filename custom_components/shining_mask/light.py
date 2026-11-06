@@ -108,6 +108,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         supports_response=SupportsResponse.OPTIONAL,
     )
     platform.async_register_entity_service(
+        "install_effect",
+        {
+            vol.Optional("effect", default="matrix"): vol.In(["matrix"]),
+            vol.Optional("start_slot", default=30): vol.All(vol.Coerce(int), vol.Range(min=1, max=250)),
+            vol.Optional("frames", default=16): vol.All(vol.Coerce(int), vol.Range(min=4, max=48)),
+            vol.Optional("speed", default=200): cv.byte,
+        },
+        "svc_install_effect",
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    platform.async_register_entity_service(
         "generate_dashboard",
         {vol.Optional("columns", default=4): vol.All(vol.Coerce(int), vol.Range(min=1, max=12))},
         "svc_generate_dashboard",
@@ -377,6 +388,25 @@ class MaskLight(MaskEntity, LightEntity):
             self.mask.slot_names[slot] = name
         self.mask.preview_changed()
         await self.mask.async_check()
+
+    async def svc_install_effect(
+        self, effect: str = "matrix", start_slot: int = 30, frames: int = 16, speed: int = 200
+    ) -> dict[str, Any]:
+        """Action: draw an animated effect, upload its frames to DIY slots, then play it.
+
+        The frames are uploaded one slot each (start_slot, start_slot+1, ...), get dashboard
+        previews like any DIY image, and play as a DIY sequence that becomes the chosen face.
+        Uploading takes a few seconds per frame; it only has to be done once.
+        """
+        from .effects import EFFECTS
+
+        images = await self.hass.async_add_executor_job(EFFECTS[effect], frames)
+        slots = list(range(start_slot, start_slot + len(images)))
+        for i, (slot, img) in enumerate(zip(slots, images), 1):
+            await self._upload_canvas(slot, lambda im=img: im)
+            self.mask.slot_names[slot] = f"{effect} {i}"
+        await self.mask.async_play_diy(slots, speed)
+        return {"effect": effect, "slots": slots, "play_again": f"play_diy slots: {start_slot}-{slots[-1]}"}
 
     async def svc_generate_dashboard(self, columns: int = 4) -> dict[str, Any]:
         """Action: write the face-picker card, the panel view and the settings card as YAML."""
