@@ -28,7 +28,7 @@ blueprint:
     idle_value: { name: Idle - value (ignored for 'chosen'), default: "1", selector: { text: {} } }
     idle_return_seconds:
       name: Idle - then go back to the chosen face after (seconds)
-      description: Only used when Idle kind isn't 'chosen'. 0 = keep showing the idle face.
+      description: Only used when Idle kind isn't 'chosen'. 0 = keep showing the idle face. If music is playing to the mask, the bars take over right away instead.
       default: 0
       selector: { number: { min: 0, max: 3600, step: 1, mode: box, unit_of_measurement: s } }
     listening_kind: { name: Listening - kind, default: diy, selector: { select: { options: [pack, image, animation, diy] } } }

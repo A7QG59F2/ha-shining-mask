@@ -19,9 +19,6 @@ from . import protocol as p
 
 _LOGGER = logging.getLogger(__name__)
 
-# how long a temporary (assistant) face keeps the music bars away, even without set_music_hold
-FACE_HOLD_S = 45.0
-
 ACK_TIMEOUT = 5.0
 PACKET_ACK_TIMEOUT = 2.0
 
@@ -87,7 +84,6 @@ class ShiningMask:
         self.slot_names: dict[int, str] = {}
         self.visualizer = None  # MaskVisualizer when the music visualizer is on
         self.music_hold = False  # True while the voice assistant face is showing
-        self._face_hold_until = 0.0  # temporary (assistant) faces also hold the bars for a while
         self._bars_live = False  # the mask is currently in rhythm (music bars) mode
         self._restoring = False
         self.visualizer_port = 8928
@@ -444,14 +440,19 @@ class ShiningMask:
     @property
     def holding_music(self) -> bool:
         """True while an assistant face must stay on top of the music bars."""
-        return self.music_hold or self.hass.loop.time() < self._face_hold_until
+        return self.music_hold
 
-    def _leave_bars(self, temporary: bool) -> list[bytes]:
-        """Packets to put before a face: exit rhythm mode first, or the bars keep drawing over it.
-        Temporary faces (the assistant's) also pause the bars for FACE_HOLD_S."""
-        if temporary and not self._restoring and self.visualizer is not None:
-            self._face_hold_until = self.hass.loop.time() + FACE_HOLD_S
-            self.visualizer.pause_for_assist()
+    @property
+    def bars_on_top(self) -> bool:
+        """Music is playing to the mask and no assistant face is holding it off.
+
+        Priority: assistant face > music bars > chosen (static) face. While this is True, faces
+        other than the assistant's are not sent; the chosen one comes back when the music stops."""
+        v = self.visualizer
+        return v is not None and self.state.is_on and v.has_music and not self.music_hold and not self._restoring
+
+    def _leave_bars(self) -> list[bytes]:
+        """Packets to put before a face: exit rhythm mode first, or the bars keep drawing over it."""
         if self._bars_live:
             self._bars_live = False
             return [p.cmd_exit_rhythm()]
@@ -474,26 +475,41 @@ class ShiningMask:
             await self.async_send(p.cmd_brightness(self._scale(self.state.brightness or 255)))
             self.state.is_on = True
 
+    def _covered_by_bars(self, kind: str, values: list[int], temporary: bool) -> bool:
+        """Music bars own the screen: remember a hand-picked face for later, drop the rest."""
+        if not self.bars_on_top:
+            return False
+        if not temporary:
+            self.state.selected = (kind, values)
+            self._notify_listeners()
+        return True
+
     async def async_show_image(self, index: int, temporary: bool = False) -> None:
+        if self._covered_by_bars("image", [index], temporary):
+            return
         await self._wake()
-        await self.async_send(*self._leave_bars(temporary), p.cmd_image(index))
+        await self.async_send(*self._leave_bars(), p.cmd_image(index))
         self.state.image, self.state.animation, self.state.diy = index, None, []
         if not temporary:
             self.state.selected = ("image", [index])
         self._notify_listeners()
 
     async def async_show_animation(self, index: int, temporary: bool = False) -> None:
+        if self._covered_by_bars("animation", [index], temporary):
+            return
         await self._wake()
-        await self.async_send(*self._leave_bars(temporary), p.cmd_animation(index))
+        await self.async_send(*self._leave_bars(), p.cmd_animation(index))
         self.state.animation, self.state.image, self.state.diy = index, None, []
         if not temporary:
             self.state.selected = ("animation", [index])
         self._notify_listeners()
 
-    async def async_restore_selected(self) -> None:
-        """Go back to the face a person last chose (falls back to DIY slot 1)."""
+    async def async_restore_selected(self, force: bool = False) -> None:
+        """Go back to the face a person last chose (falls back to DIY slot 1).
+        While music bars are up this does nothing: the chosen face returns when the music stops."""
         kind, values = self.state.selected or ("diy", [1])
-        self._face_hold_until = 0.0  # back to the chosen face: music bars may take over again
+        if self.bars_on_top and not force:
+            return
         self._restoring = True
         try:
             if kind == "image":
@@ -520,8 +536,10 @@ class ShiningMask:
         if speed is not None:
             packets.append(p.cmd_speed(speed))
         packets.append(p.cmd_play(list(slots)))
+        if self._covered_by_bars("diy", list(slots), temporary or slots == [self.blank_slot]):
+            return
         await self._wake()
-        await self.async_send(*self._leave_bars(temporary), *packets)
+        await self.async_send(*self._leave_bars(), *packets)
         self.state.diy, self.state.image, self.state.animation = list(slots), None, None
         if speed is not None:
             self.state.speed = speed
@@ -572,10 +590,14 @@ class ShiningMask:
             if i < len(frames) - 1:
                 await asyncio.sleep(interval)
 
-    async def async_exit_rhythm(self) -> None:
+    async def async_exit_rhythm(self, to_chosen: bool = False) -> None:
+        """Leave bar mode; to_chosen=True goes to the hand-picked face instead of the last one shown."""
         self._bars_live = False
         await self.async_send(p.cmd_exit_rhythm())
-        await self._restore_face()
+        if to_chosen:
+            await self.async_restore_selected(force=True)
+        else:
+            await self._restore_face()
 
     async def async_set_visualizer(self, on: bool) -> None:
         """Start/stop the Music Assistant (Sendspin) music-bars bridge."""
@@ -598,8 +620,6 @@ class ShiningMask:
     async def async_set_music_hold(self, hold: bool) -> None:
         """Voice assistant active: music bars pause so its face always wins."""
         self.music_hold = hold
-        if not hold:
-            self._face_hold_until = 0.0
         if hold and self.visualizer is not None:
             self.visualizer.pause_for_assist()
         if hold and self._bars_live:

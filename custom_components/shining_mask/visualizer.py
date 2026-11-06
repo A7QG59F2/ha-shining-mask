@@ -198,6 +198,11 @@ class MaskVisualizer:
         self._latest = bars
         self._last_frame_at = self.hass.loop.time()
 
+    @property
+    def has_music(self) -> bool:
+        """Spectrum frames are arriving (music is playing to the mask), even while held."""
+        return self.hass.loop.time() - self._last_frame_at < IDLE_RESTORE_S
+
     def pause_for_assist(self) -> None:
         """The assistant's face is taking over: stop sending bars, don't restore any face."""
         self._latest = None
@@ -207,8 +212,8 @@ class MaskVisualizer:
         while True:
             await asyncio.sleep(SEND_INTERVAL)
             now = self.hass.loop.time()
-            if self.mask.holding_music:
-                self._latest = None  # drop frames while the assistant face is up
+            if self.mask.holding_music or not self.mask.state.is_on:
+                self._latest = None  # assistant face is up, or the mask is switched off
                 continue
             if self._latest is not None and now - self._last_frame_at < IDLE_RESTORE_S:
                 bars, self._latest = self._latest, None
@@ -222,9 +227,9 @@ class MaskVisualizer:
 
     async def _end_bars(self) -> None:
         self._active = False
-        if self.mask.holding_music:
-            return  # never cover the assistant face
+        if self.mask.holding_music or not self.mask.state.is_on:
+            return  # never cover the assistant face, never wake a switched-off mask
         try:
-            await self.mask.async_exit_rhythm()
+            await self.mask.async_exit_rhythm(to_chosen=True)  # music stopped: straight to the chosen face
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Could not leave rhythm mode: %s", err)

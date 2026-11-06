@@ -106,11 +106,17 @@ playback, to Sendspin "visualizer" clients. The mask can be one of those clients
 - `select.…_music_bars_style`: Rainbow, Warm, Cool, Mirror or Vertical.
 - `number.…_music_bars_delay`: shift the bars later (+) or earlier (−) if they don't line up with
   what you hear (e.g. a speaker that adds its own delay).
-- **The assistant face always wins:** the voice-face blueprint pauses the bars while the assistant is
-  listening, thinking or talking (`shining_mask.set_music_hold`), and they resume when it goes idle.
-  The mask is taken out of bar mode before the face is sent, and any temporary face (`show_face` with
-  `temporary: true`) also keeps the bars away for 45 seconds, so it works even from your own scripts.
-  Picking a face yourself (dashboard, Image/Animation numbers) does not pause the bars.
+- **Who owns the screen** (highest first):
+  1. **Assistant face** - listening / thinking / talking (the voice-face blueprint holds the bars off with
+     `shining_mask.set_music_hold`; the mask leaves bar mode before the face is sent).
+  2. **Music bars** - whenever music is playing to the mask.
+  3. **Your chosen face** - the one you picked yourself (dashboard, Image/Animation numbers).
+- When the assistant finishes and music is still playing, the bars come straight back (the idle face
+  and the idle timeout are skipped). With no music, you get the idle face, then your chosen face after
+  the blueprint's idle timeout.
+- When the music stops, the mask goes straight to your chosen face.
+- Picking a face while music plays just remembers it; it shows when the music stops.
+- Bars are not sent while the mask is switched off.
 - **EQ:** `…_music_bars_sensitivity` (overall height), `…_music_bars_contrast` (higher = quiet bands
   drop further, peaks still reach the top), and `…_music_bars_bass` / `_mid` / `_treble`
   (bars 1–4 / 5–8 / 9–12). All apply live while music plays.
