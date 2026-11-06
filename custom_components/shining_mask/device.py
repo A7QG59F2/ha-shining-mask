@@ -55,6 +55,11 @@ class MaskState:
     visualizer_on: bool = False
     visualizer_style: int = 0
     visualizer_delay_ms: int = 0
+    bars_sensitivity: int = 100  # %
+    bars_contrast: float = 1.6
+    bars_bass: int = 100  # %
+    bars_mid: int = 100
+    bars_treble: int = 100
 
 
 class ShiningMask:
@@ -125,6 +130,9 @@ class ShiningMask:
         s.visualizer_on = bool(data.get("visualizer_on", False))
         s.visualizer_style = int(data.get("visualizer_style", 0))
         s.visualizer_delay_ms = int(data.get("visualizer_delay_ms", 0))
+        for key in ("bars_sensitivity", "bars_bass", "bars_mid", "bars_treble"):
+            setattr(s, key, int(data.get(key, 100)))
+        s.bars_contrast = float(data.get("bars_contrast", 1.6))
 
     def _data_to_save(self) -> dict:
         s = self.state
@@ -153,6 +161,11 @@ class ShiningMask:
             "visualizer_on": s.visualizer_on,
             "visualizer_style": s.visualizer_style,
             "visualizer_delay_ms": s.visualizer_delay_ms,
+            "bars_sensitivity": s.bars_sensitivity,
+            "bars_contrast": s.bars_contrast,
+            "bars_bass": s.bars_bass,
+            "bars_mid": s.bars_mid,
+            "bars_treble": s.bars_treble,
         }
 
     # ------------------------------------------------------------ listeners
@@ -543,21 +556,34 @@ class ShiningMask:
             except OSError as err:
                 raise HomeAssistantError(f"Could not open port {self.visualizer_port}: {err}") from err
             self.visualizer = viz
+            self._apply_tuning()
         elif not on and self.visualizer is not None:
             viz, self.visualizer = self.visualizer, None
             await viz.async_stop()
         self.state.visualizer_on = on
         self._notify_listeners()
 
-    def set_visualizer_tuning(self, style: int | None = None, delay_ms: int | None = None) -> None:
-        if style is not None:
-            self.state.visualizer_style = style
-        if delay_ms is not None:
-            self.state.visualizer_delay_ms = delay_ms
-        if self.visualizer is not None:
-            self.visualizer.style = self.state.visualizer_style
-            self.visualizer.delay_ms = self.state.visualizer_delay_ms
+    def set_visualizer_tuning(self, **values) -> None:
+        """style, delay_ms, bars_sensitivity, bars_contrast, bars_bass, bars_mid, bars_treble."""
+        s = self.state
+        if "style" in values:
+            s.visualizer_style = int(values["style"])
+        if "delay_ms" in values:
+            s.visualizer_delay_ms = int(values["delay_ms"])
+        for key in ("bars_sensitivity", "bars_contrast", "bars_bass", "bars_mid", "bars_treble"):
+            if key in values:
+                setattr(s, key, values[key])
+        self._apply_tuning()
         self._notify_listeners()
+
+    def _apply_tuning(self) -> None:
+        v, s = self.visualizer, self.state
+        if v is None:
+            return
+        v.style, v.delay_ms = s.visualizer_style, s.visualizer_delay_ms
+        v.sensitivity = s.bars_sensitivity / 100
+        v.contrast = s.bars_contrast
+        v.eq = (s.bars_bass / 100, s.bars_mid / 100, s.bars_treble / 100)
 
     async def async_set_gesture(
         self,

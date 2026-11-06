@@ -30,6 +30,10 @@ IDLE_RESTORE_S = 2.0  # no frames for this long -> give the face back
 
 class MaskVisualizer:
     def __init__(self, hass: HomeAssistant, mask: ShiningMask, port: int, style: int = 0, delay_ms: int = 0) -> None:
+        # EQ / response (updated live from the mask's settings)
+        self.sensitivity = 1.0  # overall gain
+        self.contrast = 1.6  # >1 pushes quiet bands down, keeps peaks
+        self.eq = (1.0, 1.0, 1.0)  # bass (bars 1-4), mid (5-8), treble (9-12)
         self.hass = hass
         self.mask = mask
         self.port = port
@@ -176,12 +180,20 @@ class MaskVisualizer:
         self._beat_boost = max(self._beat_boost, strength)
 
     def _show(self, raw: list[int]) -> None:
-        # auto-gain: follow the loudest recent bin, decay slowly
+        # auto-gain reference: the loudest bin of the last several seconds (slow decay),
+        # so normal passages sit well below full height and only peaks reach the top
         top = max(raw) if raw else 0
-        self._peak = max(top, self._peak * 0.985, 1500.0)
-        boost = 1.0 + 0.35 * self._beat_boost
+        self._peak = max(top, self._peak * 0.997, 3000.0)
+        boost = 1.0 + 0.25 * self._beat_boost
         self._beat_boost *= 0.6
-        bars = [min(15, int(round(15 * boost * v / self._peak))) for v in raw[:N_BARS]]
+        gate = 0.08
+        bars = []
+        for i, v in enumerate(raw[:N_BARS]):
+            x = v / self._peak
+            x = max(0.0, x - gate) / (1 - gate)  # noise gate
+            x = x ** self.contrast  # contrast curve
+            x *= self.sensitivity * self.eq[min(2, i * 3 // N_BARS)] * boost
+            bars.append(max(0, min(15, int(round(15 * x)))))
         bars += [0] * (N_BARS - len(bars))
         self._latest = bars
         self._last_frame_at = self.hass.loop.time()

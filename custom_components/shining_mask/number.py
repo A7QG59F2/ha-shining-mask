@@ -21,6 +21,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             MaskSpeedNumber(mask),
             MaskBarsStyleNumber(mask),
             MaskBarsDelayNumber(mask),
+            MaskBarsTuneNumber(mask, "bars_sensitivity", "Music bars sensitivity", "mdi:tune-vertical", 10, 300, 5, "%"),
+            MaskBarsTuneNumber(mask, "bars_contrast", "Music bars contrast", "mdi:contrast-box", 1.0, 3.0, 0.1, None),
+            MaskBarsTuneNumber(mask, "bars_bass", "Music bars bass", "mdi:speaker", 0, 200, 5, "%"),
+            MaskBarsTuneNumber(mask, "bars_mid", "Music bars mid", "mdi:speaker", 0, 200, 5, "%"),
+            MaskBarsTuneNumber(mask, "bars_treble", "Music bars treble", "mdi:speaker", 0, 200, 5, "%"),
         ]
     )
 
@@ -127,3 +132,27 @@ class MaskBarsDelayNumber(MaskEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         self.mask.set_visualizer_tuning(delay_ms=int(value))
+
+
+class MaskBarsTuneNumber(MaskEntity, NumberEntity):
+    """Music bars EQ / response setting (applies live)."""
+
+    _attr_mode = NumberMode.SLIDER
+
+    def __init__(self, mask, key, name, icon, lo, hi, step, unit) -> None:
+        super().__init__(mask, key)
+        self._key = key
+        self._attr_name = name
+        self._attr_icon = icon
+        self._attr_native_min_value = lo
+        self._attr_native_max_value = hi
+        self._attr_native_step = step
+        self._attr_native_unit_of_measurement = unit
+
+    @property
+    def native_value(self):
+        return getattr(self.mask.state, self._key)
+
+    async def async_set_native_value(self, value: float) -> None:
+        v = round(float(value), 2) if self._key == "bars_contrast" else int(value)
+        self.mask.set_visualizer_tuning(**{self._key: v})
