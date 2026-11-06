@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 import logging
+import time
 
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
@@ -72,6 +73,11 @@ class MaskState:
     clock_motion: str = "Animated"  # "Animated" = 2 frames a minute, "Still" = 1 (less upload arrow)
     clock_style: str = "Picture"  # "Picture" (uploads each minute) or "Digit flip" (no uploads)
     clock_digits: str | None = None  # theme the digit-flip digits were uploaded in (None = not there)
+    clock_digit_slots: list[int] = field(default_factory=list)  # 0-9, ':', info screen
+    clock_slots: list[int] = field(default_factory=list)  # picture clock: 2 buffers x 2 frames
+    # who uploaded each DIY slot: pack, blank, digits, clock, effect, other (see allocate_slots)
+    slot_owner: dict[int, str] = field(default_factory=dict)
+    slot_played: dict[int, float] = field(default_factory=dict)  # slot -> last time it was played
     # voice-assistant face (see assist.py)
     assist_satellite: str | None = None  # assist_satellite entity to follow; None = off
     assist_faces: dict[str, str] = field(default_factory=dict)  # listening/thinking/talking/idle/error -> choice
@@ -173,6 +179,10 @@ class ShiningMask:
         s.clock_motion = data.get("clock_motion", "Animated")
         s.clock_style = data.get("clock_style", "Picture")
         s.clock_digits = data.get("clock_digits")
+        s.clock_digit_slots = [int(v) for v in data.get("clock_digit_slots", [])]
+        s.clock_slots = [int(v) for v in data.get("clock_slots", [])]
+        s.slot_owner = {int(k): v for k, v in (data.get("slot_owner") or {}).items()}
+        s.slot_played = {int(k): float(v) for k, v in (data.get("slot_played") or {}).items()}
         s.assist_satellite = data.get("assist_satellite")
         s.assist_faces = dict(data.get("assist_faces") or {})
         s.assist_talk_speed = int(data.get("assist_talk_speed", 220))
@@ -222,6 +232,10 @@ class ShiningMask:
             "clock_motion": s.clock_motion,
             "clock_style": s.clock_style,
             "clock_digits": s.clock_digits,
+            "clock_digit_slots": s.clock_digit_slots,
+            "clock_slots": s.clock_slots,
+            "slot_owner": {str(k): v for k, v in s.slot_owner.items()},
+            "slot_played": {str(k): v for k, v in s.slot_played.items()},
             "assist_satellite": s.assist_satellite,
             "assist_faces": s.assist_faces,
             "assist_talk_speed": s.assist_talk_speed,
@@ -500,7 +514,7 @@ class ShiningMask:
         from .graphics import face_blank, image_to_payload
 
         payload = await self.hass.async_add_executor_job(lambda: image_to_payload(face_blank(), self.pixel_order))
-        await self.async_upload_image(self.blank_slot, payload)
+        await self.async_upload_image(self.blank_slot, payload, owner="blank")
         self._blank_uploaded = True
 
     async def async_turn_off(self) -> None:
@@ -668,6 +682,9 @@ class ShiningMask:
         packets.append(p.cmd_play(list(slots)))
         if self._covered_by_bars("diy", list(slots), temporary or slots == [self.blank_slot]):
             return
+        now = time.time()
+        for slot in slots:
+            self.state.slot_played[slot] = now  # for allocate_slots: recently used = keep
         await self._wake()
         await self.async_send(*self._leave_bars(), *packets)
         self.state.diy, self.state.image, self.state.animation = list(slots), None, None
@@ -861,16 +878,8 @@ class ShiningMask:
         self.state.text = text
         self._notify_listeners()
 
-    async def async_upload_image(self, slot: int, payload: bytes, by_clock: bool = False) -> None:
-        """Upload a picture into a DIY slot.
-
-        Anything other than the clock writing into the shared slot pool (e.g. Matrix) means the
-        digit-flip clock's digits are gone; it re-uploads them when next shown.
-        """
-        from .const import SHARED_SLOTS
-
-        if slot in SHARED_SLOTS and not by_clock and self.state.clock_digits is not None:
-            self.state.clock_digits = None
+    async def async_upload_image(self, slot: int, payload: bytes, owner: str = "other") -> None:
+        """Upload a picture into a DIY slot and record who owns it (see allocate_slots)."""
         if len(payload) != p.IMAGE_BYTES:
             raise HomeAssistantError(f"Image payload must be {p.IMAGE_BYTES} bytes")
         from .const import MAX_DIY_SLOT
@@ -878,6 +887,7 @@ class ShiningMask:
         if not 1 <= slot <= MAX_DIY_SLOT:
             raise HomeAssistantError(f"DIY slot {slot} is out of range: the mask stores slots 1-{MAX_DIY_SLOT}")
         await self.async_upload(p.cmd_upload_start_image(len(payload), slot), payload)
+        self.state.slot_owner[slot] = owner
         if slot == self.blank_slot:
             self._blank_uploaded = payload == bytes(len(payload))
 
@@ -885,6 +895,58 @@ class ShiningMask:
         """Delete DIY slots from the mask (DELE command)."""
         for i in range(0, len(slots), 10):
             await self.async_send(p.cmd_delete(list(slots[i : i + 10])))
+
+    # ------------------------------------------------------------- DIY slot allocation
+    # Lower = overwritten first. pack/blank (and your chosen DIY face) are never overwritten.
+    OWNER_RANK = {None: 0, "other": 1, "effect": 2, "clock": 3, "digits": 3}
+    PROTECTED = ("pack", "blank")
+
+    def slot_owner(self, slot: int) -> str | None:
+        """Who uses a slot. Older uploads without a record are guessed from names/pack roles."""
+        s = self.state
+        if slot == self.blank_slot:
+            return "blank"
+        if any(slot in v for v in s.pack.values()):
+            return "pack"
+        if slot in s.slot_owner:
+            return s.slot_owner[slot]
+        name = self.slot_names.get(slot, "")
+        if name.startswith("clock"):
+            return "clock"
+        if name.startswith("matrix"):
+            return "effect"
+        return "other" if name else None
+
+    def allocate_slots(self, count: int, owner: str) -> list[int]:
+        """Pick `count` DIY slots for `owner`, overwriting the least likely to be missed first.
+
+        Order: slots this owner already has, then empty slots, then other uploads (default
+        faces, tests), then effects (Matrix, re-uploaded when you run it), then the clocks -
+        and within each group the one played longest ago. Never touched: the face pack, the
+        black 'off' frame, and a DIY face you chose yourself.
+        """
+        from .const import MAX_DIY_SLOT
+
+        s = self.state
+        keep = set(s.selected[1]) if s.selected and s.selected[0] == "diy" else set()
+        free: list[tuple] = []
+        for slot in range(1, MAX_DIY_SLOT + 1):
+            who = self.slot_owner(slot)
+            if who in self.PROTECTED or slot in keep:
+                continue
+            rank = -1 if who == owner else self.OWNER_RANK.get(who, 1)
+            # the clock style you aren't using is cheaper to lose than the one you are
+            if (who == "clock") == (s.clock_style == "Digit flip") and who in ("clock", "digits"):
+                rank = 1.5
+            free.append((rank, s.slot_played.get(slot, 0.0), slot))
+        free.sort()
+        if len(free) < count:
+            raise HomeAssistantError(f"Not enough free DIY slots: need {count}, {len(free)} can be reused")
+        return sorted(slot for _, _, slot in free[:count])
+
+    def slots_owned(self, slots: Sequence[int], owner: str) -> bool:
+        """True if every slot in the list still holds `owner`'s upload."""
+        return bool(slots) and all(self.slot_owner(x) == owner for x in slots)
 
     async def async_reset(self) -> None:
         """Back to a clean mask: delete every uploaded DIY image and switch extras off.
@@ -904,6 +966,9 @@ class ShiningMask:
         s.gesture_gallery_items, s.gesture_diy_items = [], []
         s.selected, s.clock_prev, s.diy = ("image", [1]), None, []
         s.clock_digits = None
+        s.clock_digit_slots, s.clock_slots = [], []
+        s.slot_owner.clear()
+        s.slot_played.clear()
         self.slot_names.clear()
         self._blank_uploaded = False  # 'off' re-uploads its black frame when next needed
         if self.clock is not None:

@@ -15,7 +15,6 @@ from .const import (
     CONF_MAX_BRIGHTNESS,
     CONF_PIXEL_ORDER,
     CONF_VISUALIZER_PORT,
-    CLOCK_FIRST_SLOT,
     DEFAULT_BLANK_SLOT,
     DEFAULT_VISUALIZER_PORT,
     DEFAULT_DISCONNECT_AFTER,
@@ -62,7 +61,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
     # clock screen: ticks every minute but only draws while it is the face on screen
     from .clock import MaskClock
 
-    mask.clock = MaskClock(hass, mask, CLOCK_FIRST_SLOT)
+    mask.clock = MaskClock(hass, mask)
     mask.clock.start()
     entry.async_on_unload(mask.clock.stop)
     # voice-assistant faces: follows the satellite chosen on the mask's "Assistant satellite"

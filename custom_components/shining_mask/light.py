@@ -114,7 +114,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         "install_effect",
         {
             vol.Optional("effect", default="matrix"): vol.In(["matrix"]),
-            # no start_slot = the shared slot pool (1-8, 26-29), shared with the digit-flip clock
+            # no start_slot = automatic: reuse the slots least likely to be missed
             vol.Optional("start_slot"): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
             # PLAY takes at most 10 slots, so an effect is at most 10 frames
             vol.Optional("frames", default=8): vol.All(vol.Coerce(int), vol.Range(min=4, max=10)),
@@ -273,7 +273,7 @@ class MaskLight(MaskEntity, LightEntity):
             return _load
 
         for f_str, slot in frame_slot.items():
-            await self._upload_canvas(slot, _loader(f_str))
+            await self._upload_canvas(slot, _loader(f_str), owner="pack")
             self.mask.slot_names[slot] = f"{path.name}/{f_str.rsplit('/', 1)[-1]}"
 
         pack = {role: [frame_slot[str(f)] for f in frames] for role, frames in plan.items()}
@@ -340,8 +340,8 @@ class MaskLight(MaskEntity, LightEntity):
         """Action: show text with a colour, mode and speed."""
         await self.mask.async_set_text(text, color, TEXT_MODES[mode], speed)
 
-    async def _upload_canvas(self, slot: int, make_canvas) -> None:
-        """make_canvas: blocking callable returning a 46x58 RGB canvas."""
+    async def _upload_canvas(self, slot: int, make_canvas, owner: str = "other") -> None:
+        """make_canvas: blocking callable returning a 46x58 RGB canvas. owner: see allocate_slots."""
         from .graphics import encode_image_pixels
         from .previews import save_diy_preview
 
@@ -352,7 +352,7 @@ class MaskLight(MaskEntity, LightEntity):
             return canvas, encode_image_pixels(list(canvas.getdata()), order)
 
         canvas, payload = await self.hass.async_add_executor_job(_prep)
-        await self.mask.async_upload_image(slot, payload)
+        await self.mask.async_upload_image(slot, payload, owner=owner)
         await self.hass.async_add_executor_job(save_diy_preview, self.hass, slot, canvas)
         self.mask.preview_changed()
 
@@ -406,22 +406,21 @@ class MaskLight(MaskEntity, LightEntity):
         previews like any DIY image, and play as a DIY sequence that becomes the chosen face.
         Uploading takes a few seconds per frame; it only has to be done once.
         """
-        from .const import CLOCK_FIRST_SLOT, MAX_DIY_SLOT, SHARED_SLOTS
+        from .const import MAX_DIY_SLOT
         from .effects import EFFECTS
 
         if start_slot is None:
-            slots = SHARED_SLOTS[:frames]  # uploaded on demand; the digit clock re-uploads after
+            # least-needed slots first; never the face pack or the black 'off' frame
+            slots = self.mask.allocate_slots(frames, "effect")
         else:
             slots = list(range(start_slot, start_slot + frames))
             if slots[-1] > MAX_DIY_SLOT:
                 raise ServiceValidationError(
                     f"Slots {start_slot}-{slots[-1]} don't fit: the mask stores DIY slots 1-{MAX_DIY_SLOT}"
                 )
-            if slots[-1] >= CLOCK_FIRST_SLOT:
-                _LOGGER.warning("Effect slots %s-%s overlap the picture clock's slots", start_slot, slots[-1])
         images = await self.hass.async_add_executor_job(EFFECTS[effect], frames)
         for i, (slot, img) in enumerate(zip(slots, images), 1):
-            await self._upload_canvas(slot, lambda im=img: im)
+            await self._upload_canvas(slot, lambda im=img: im, owner="effect")
             self.mask.slot_names[slot] = f"{effect} {i}"
         await self.mask.async_play_diy(slots, speed)
         return {"effect": effect, "slots": slots, "play_again": "play_diy slots: " + ",".join(map(str, slots))}

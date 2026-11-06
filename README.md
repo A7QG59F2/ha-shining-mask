@@ -61,7 +61,7 @@ is on screen. Assistant faces and music bars still take over and hand the screen
 clock. **Clock speed** sets how fast the two frames alternate.
 
 - **Clock style**: *Picture* draws the full clock and uploads it every minute. *Digit flip*
-  uploads digits 0-9, a colon and an info screen (sky, big temperature, date) once. After that,
+  uploads digits 0-9, a colon and an info screen (sky, big temperature, date) once, into 12 slots. After that,
   each minute it just tells the mask to flip through `info, H, H, :, M, M`, with black gaps so
   11:11 reads as four 1s. That means no uploads and no download arrow. The info screen re-uploads
   only when the weather, temperature or date change, or every 30 minutes for the sky.
@@ -72,11 +72,17 @@ clock. **Clock speed** sets how fast the two frames alternate.
   can't be turned off, so *Still* halves how long the arrow shows each minute.
 
 ## DIY slot limit
-The mask only stores DIY slots **1-34**. Uploads to slot 35 or higher are refused. Layout:
-- **Shared pool 1-8 and 26-29**: the digit-flip clock (digits, colon, info screen) and effects
-  such as Matrix, which upload here when you run them. After an effect has used the pool, the
-  digit clock re-uploads its digits the next time it's shown.
-- **9**: the black "off" frame. **10-25**: the face pack. **31-34**: the picture clock.
+The mask only stores DIY slots **1-34**. Uploads to slot 35 or higher are refused. The integration
+picks slots for the clock and for effects itself, overwriting whatever is least likely to be missed:
+1. slots that owner already uses
+2. empty slots
+3. other uploads (default faces, test images)
+4. the clock style you're not using
+5. effects such as Matrix, which re-upload when you run them
+6. the active clock, which re-uploads when next shown
+
+Within each group, the slot played longest ago goes first. **Never overwritten:** the face pack (the
+assistant's faces), the black "off" frame, and a DIY face you chose yourself.
 
 ## Reset
 `shining_mask.reset_mask` (with `confirm: true`) deletes every uploaded DIY image: face pack,
