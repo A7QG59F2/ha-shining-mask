@@ -52,6 +52,9 @@ class MaskState:
     gesture_library: str = "all"
     gesture_circulation: str = "order"
     gesture_items: list[int] = field(default_factory=list)
+    visualizer_on: bool = False
+    visualizer_style: int = 0
+    visualizer_delay_ms: int = 0
 
 
 class ShiningMask:
@@ -74,6 +77,8 @@ class ShiningMask:
         self.blank_slot = blank_slot
         self._blank_uploaded = False
         self.slot_names: dict[int, str] = {}
+        self.visualizer = None  # MaskVisualizer when the music visualizer is on
+        self.visualizer_port = 8928
         self.preview_version = 0
         self.state = MaskState()
         self._ble_device: BLEDevice | None = None
@@ -117,6 +122,9 @@ class ShiningMask:
         s.gesture_library = data.get("gesture_library", "all")
         s.gesture_circulation = data.get("gesture_circulation", "order")
         s.gesture_items = [int(v) for v in data.get("gesture_items", [])]
+        s.visualizer_on = bool(data.get("visualizer_on", False))
+        s.visualizer_style = int(data.get("visualizer_style", 0))
+        s.visualizer_delay_ms = int(data.get("visualizer_delay_ms", 0))
 
     def _data_to_save(self) -> dict:
         s = self.state
@@ -142,6 +150,9 @@ class ShiningMask:
             "gesture_library": s.gesture_library,
             "gesture_circulation": s.gesture_circulation,
             "gesture_items": s.gesture_items,
+            "visualizer_on": s.visualizer_on,
+            "visualizer_style": s.visualizer_style,
+            "visualizer_delay_ms": s.visualizer_delay_ms,
         }
 
     # ------------------------------------------------------------ listeners
@@ -520,6 +531,33 @@ class ShiningMask:
     async def async_exit_rhythm(self) -> None:
         await self.async_send(p.cmd_exit_rhythm())
         await self._restore_face()
+
+    async def async_set_visualizer(self, on: bool) -> None:
+        """Start/stop the Music Assistant (Sendspin) music-bars bridge."""
+        from .visualizer import MaskVisualizer
+
+        if on and self.visualizer is None:
+            viz = MaskVisualizer(self.hass, self, self.visualizer_port, self.state.visualizer_style, self.state.visualizer_delay_ms)
+            try:
+                await viz.async_start()
+            except OSError as err:
+                raise HomeAssistantError(f"Could not open port {self.visualizer_port}: {err}") from err
+            self.visualizer = viz
+        elif not on and self.visualizer is not None:
+            viz, self.visualizer = self.visualizer, None
+            await viz.async_stop()
+        self.state.visualizer_on = on
+        self._notify_listeners()
+
+    def set_visualizer_tuning(self, style: int | None = None, delay_ms: int | None = None) -> None:
+        if style is not None:
+            self.state.visualizer_style = style
+        if delay_ms is not None:
+            self.state.visualizer_delay_ms = delay_ms
+        if self.visualizer is not None:
+            self.visualizer.style = self.state.visualizer_style
+            self.visualizer.delay_ms = self.state.visualizer_delay_ms
+        self._notify_listeners()
 
     async def async_set_gesture(
         self,

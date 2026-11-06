@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, Platform
@@ -12,13 +14,17 @@ from .const import (
     CONF_BLANK_SLOT,
     CONF_MAX_BRIGHTNESS,
     CONF_PIXEL_ORDER,
+    CONF_VISUALIZER_PORT,
     DEFAULT_BLANK_SLOT,
+    DEFAULT_VISUALIZER_PORT,
     DEFAULT_DISCONNECT_AFTER,
     DEFAULT_MAX_BRIGHTNESS,
     DEFAULT_PIXEL_ORDER,
 )
 from .device import ShiningMask
 from .previews import async_register_static
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.IMAGE, Platform.LIGHT, Platform.NUMBER, Platform.SELECT, Platform.SWITCH, Platform.TEXT]
 
@@ -37,6 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
         entry.options.get(CONF_BLANK_SLOT, DEFAULT_BLANK_SLOT),
     )
     await mask.async_load()
+    mask.visualizer_port = entry.options.get(CONF_VISUALIZER_PORT, DEFAULT_VISUALIZER_PORT)
     if dev := bluetooth.async_ble_device_from_address(hass, address, connectable=True):
         mask.set_ble_device(dev)
 
@@ -54,6 +61,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
     await async_register_static(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_reload))
+    if mask.state.visualizer_on:
+        try:
+            await mask.async_set_visualizer(True)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Music visualizer could not start: %s", err)
     return True
 
 
@@ -64,5 +76,8 @@ async def _reload(hass: HomeAssistant, entry: MaskConfigEntry) -> None:
 async def async_unload_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool:
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
+        if entry.runtime_data.visualizer is not None:
+            viz, entry.runtime_data.visualizer = entry.runtime_data.visualizer, None
+            await viz.async_stop()
         await entry.runtime_data.async_disconnect()
     return ok

@@ -14,6 +14,8 @@ from homeassistant.core import callback
 from .const import (
     CONF_BLANK_SLOT,
     CONF_MAX_BRIGHTNESS,
+    CONF_VISUALIZER_PORT,
+    DEFAULT_VISUALIZER_PORT,
     DEFAULT_BLANK_SLOT,
     DEFAULT_MAX_BRIGHTNESS,
     CONF_DISCONNECT_AFTER,
@@ -148,6 +150,9 @@ class ShiningMaskOptionsFlow(OptionsFlow):
                     ),
                     vol.Required(CONF_BLANK_SLOT, default=o.get(CONF_BLANK_SLOT, DEFAULT_BLANK_SLOT)): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=255)
+                    ),
+                    vol.Required(CONF_VISUALIZER_PORT, default=o.get(CONF_VISUALIZER_PORT, DEFAULT_VISUALIZER_PORT)): vol.All(
+                        vol.Coerce(int), vol.Range(min=1024, max=65535)
                     ),
                 }
             ),

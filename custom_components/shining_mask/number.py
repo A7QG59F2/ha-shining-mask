@@ -19,6 +19,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             MaskImageNumber(mask, entry.options.get(CONF_MAX_IMAGE, DEFAULT_MAX_IMAGE)),
             MaskAnimationNumber(mask, entry.options.get(CONF_MAX_ANIMATION, DEFAULT_MAX_ANIMATION)),
             MaskSpeedNumber(mask),
+            MaskBarsStyleNumber(mask),
+            MaskBarsDelayNumber(mask),
         ]
     )
 
@@ -81,3 +83,47 @@ class MaskSpeedNumber(MaskEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         await self.mask.async_set_speed(int(value))
+
+
+class MaskBarsStyleNumber(MaskEntity, NumberEntity):
+    """Rhythm effect used for the music bars (the app's rhythm styles)."""
+
+    _attr_name = "Music bars style"
+    _attr_icon = "mdi:chart-bar"
+    _attr_native_min_value = 0
+    _attr_native_max_value = 20
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "bars_style")
+
+    @property
+    def native_value(self):
+        return self.mask.state.visualizer_style
+
+    async def async_set_native_value(self, value: float) -> None:
+        self.mask.set_visualizer_tuning(style=int(value))
+
+
+class MaskBarsDelayNumber(MaskEntity, NumberEntity):
+    """Shift the bars later (+) or earlier (-) to line up with what you hear."""
+
+    _attr_name = "Music bars delay"
+    _attr_icon = "mdi:timer-sync-outline"
+    _attr_native_min_value = -1000
+    _attr_native_max_value = 2000
+    _attr_native_step = 10
+    _attr_native_unit_of_measurement = "ms"
+    _attr_mode = NumberMode.BOX
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "bars_delay")
+
+    @property
+    def native_value(self):
+        return self.mask.state.visualizer_delay_ms
+
+    async def async_set_native_value(self, value: float) -> None:
+        self.mask.set_visualizer_tuning(delay_ms=int(value))

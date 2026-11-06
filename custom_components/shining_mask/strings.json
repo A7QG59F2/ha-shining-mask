@@ -38,7 +38,8 @@
           "max_image": "Highest built-in image number",
           "max_animation": "Highest built-in animation number",
           "max_brightness": "Mask brightness at 100% (raw 1-255; slight flicker reported above ~128)",
-          "blank_slot": "DIY slot used for the black 'off' frame"
+          "blank_slot": "DIY slot used for the black 'off' frame",
+          "visualizer_port": "Music visualizer port (Sendspin, default 8928)"
         }
       }
     }

@@ -35,3 +35,6 @@ TEXT_EFFECTS = {
     "background_3": 6,
     "background_4": 7,
 }
+
+CONF_VISUALIZER_PORT = "visualizer_port"
+DEFAULT_VISUALIZER_PORT = 8928

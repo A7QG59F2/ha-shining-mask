@@ -95,6 +95,18 @@ Any state can use a built-in image or animation instead (kind = image/animation)
   (up to 7).
 - Text background colour now uses the confirmed `BC` command.
 
+## Music bars from Music Assistant (Sendspin visualizer)
+Music Assistant (2.9+) works out each song's spectrum and beats and streams them, in time with
+playback, to Sendspin "visualizer" clients. The mask can be one of those clients:
+1. Turn on `switch.…_music_visualizer`. The mask advertises itself on your network as a Sendspin
+   visualizer (port 8928, changeable in the integration options).
+2. In Music Assistant, approve the new **"MASK-… (mask)"** Sendspin client if it asks.
+3. Group it with the player you're listening to (a Sendspin player or a bridged speaker).
+   When that player plays, the mask shows the bars; about 2 s after the music stops, its face returns.
+- `number.…_music_bars_style`: rhythm effect used for the bars.
+- `number.…_music_bars_delay`: shift the bars later (+) or earlier (−) if they don't line up with
+  what you hear (e.g. a speaker that adds its own delay).
+
 ## Options
 - **Disconnect after idle seconds**: 0 (default) keeps the link open for instant face changes.
   Set this to e.g. 60 to save mask battery or free a proxy slot.

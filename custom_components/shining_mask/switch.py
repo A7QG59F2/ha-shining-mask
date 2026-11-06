@@ -13,7 +13,7 @@ from .entity import MaskEntity
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([MaskGestureSwitch(entry.runtime_data)])
+    async_add_entities([MaskGestureSwitch(entry.runtime_data), MaskVisualizerSwitch(entry.runtime_data)])
 
 
 class MaskGestureSwitch(MaskEntity, SwitchEntity):
@@ -38,3 +38,32 @@ class MaskGestureSwitch(MaskEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.mask.async_set_gesture(enable=False)
+
+
+class MaskVisualizerSwitch(MaskEntity, SwitchEntity):
+    """Music bars from Music Assistant (Sendspin visualizer)."""
+
+    _attr_name = "Music visualizer"
+    _attr_icon = "mdi:equalizer"
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "music_visualizer")
+
+    @property
+    def is_on(self) -> bool:
+        return self.mask.state.visualizer_on
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        v = self.mask.visualizer
+        return {
+            "music_assistant_connected": bool(v and v.connected),
+            "music_playing": bool(v and v.playing),
+            "port": self.mask.visualizer_port,
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.mask.async_set_visualizer(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.mask.async_set_visualizer(False)
