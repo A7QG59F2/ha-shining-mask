@@ -244,8 +244,8 @@
           "description": "order or random."
         },
         "items": {
-          "name": "Pictures",
-          "description": "For gallery/diy: up to 7 image or DIY slot numbers, comma-separated."
+          "name": "Faces",
+          "description": "For gallery: built-in image numbers. For diy: DIY slot numbers. Commas and ranges, e.g. 1, 4, 7-9. Any length."
         }
       }
     },

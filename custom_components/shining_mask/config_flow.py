@@ -35,17 +35,20 @@ MANUAL = "manual"
 
 
 def _is_mask(info: BluetoothServiceInfoBleak) -> bool:
+    """True if an advertisement looks like a Shining Mask (name MASK-xxxx or its FFF0 service)."""
     name = (info.name or "").upper()
     return "MASK" in name or SERVICE_UUID in info.service_uuids
 
 
 def _label(info: BluetoothServiceInfoBleak) -> str:
+    """Text for one device in the picker: name, address, signal strength, connectable or not."""
     name = info.name or "(no name)"
     extra = "" if info.connectable else " - heard only via a non-connectable proxy"
     return f"{name} ({info.address}, {info.rssi} dBm){extra}"
 
 
 class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Set up a mask: from Bluetooth discovery, from a list of nearby devices, or by address."""
     VERSION = 1
 
     def __init__(self) -> None:
@@ -53,6 +56,7 @@ class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
         self._names: dict[str, str] = {}
 
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> ConfigFlowResult:
+        """Home Assistant discovered a mask advertising nearby."""
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         self._discovery = discovery_info
@@ -60,6 +64,7 @@ class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
         return await self.async_step_bluetooth_confirm()
 
     async def async_step_bluetooth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Ask the user to confirm the discovered mask before adding it."""
         assert self._discovery
         if user_input is not None:
             return self.async_create_entry(
@@ -71,12 +76,14 @@ class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def _create(self, address: str, title: str) -> ConfigFlowResult:
+        """Create the config entry for the chosen address."""
         address = address.strip().upper()
         await self.async_set_unique_id(address, raise_on_progress=False)
         self._abort_if_unique_id_configured()
         return self.async_create_entry(title=title, data={CONF_ADDRESS: address})
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Manual setup: list nearby named devices (masks first), or offer typing an address."""
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
             if address == MANUAL:
@@ -108,6 +115,7 @@ class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_manual(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Manual setup by Bluetooth address, for when the mask isn't in the list."""
         errors = {}
         if user_input is not None:
             addr = user_input[CONF_ADDRESS].strip().upper()
@@ -121,11 +129,14 @@ class ShiningMaskConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Return the options flow for an existing entry."""
         return ShiningMaskOptionsFlow()
 
 
 class ShiningMaskOptionsFlow(OptionsFlow):
+    """Options: idle disconnect, pixel order, number limits, brightness cap, blank slot, port."""
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Show and save the options form."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
         o = self.config_entry.options

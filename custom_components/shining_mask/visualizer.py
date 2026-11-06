@@ -29,6 +29,12 @@ IDLE_RESTORE_S = 2.0  # no frames for this long -> give the face back
 
 
 class MaskVisualizer:
+    """Music bars from Music Assistant.
+
+    The mask appears to Music Assistant as a Sendspin 'visualizer' player. MA streams a
+    12-band spectrum timed to the audio; we turn each frame into 12 bar heights and send it to
+    the mask's rhythm characteristic when that audio is actually heard.
+    """
     def __init__(self, hass: HomeAssistant, mask: ShiningMask, port: int, style: int = 0, delay_ms: int = 0) -> None:
         # EQ / response (updated live from the mask's settings)
         self.sensitivity = 1.0  # overall gain
@@ -54,6 +60,7 @@ class MaskVisualizer:
 
     # ------------------------------------------------------------ lifecycle
     async def async_start(self) -> None:
+        """Open the websocket listener and announce the mask over mDNS so Music Assistant finds it."""
         from aiosendspin.client.client import SendspinClient
         from aiosendspin.models.types import Roles
         from aiosendspin.models.visualizer import (
@@ -105,6 +112,7 @@ class MaskVisualizer:
         _LOGGER.info("Mask music visualizer listening on port %s", self.port)
 
     async def async_stop(self) -> None:
+        """Stop announcing, close the connection and give the face back."""
         if self._sender:
             self._sender.cancel()
             self._sender = None
@@ -127,6 +135,7 @@ class MaskVisualizer:
             await self._end_bars()
 
     async def _advertise(self, peer_id: str) -> None:
+        """Register the _sendspin._tcp service so Music Assistant can connect."""
         from zeroconf.asyncio import AsyncServiceInfo
 
         from homeassistant.components.network import async_get_source_ip
@@ -145,6 +154,7 @@ class MaskVisualizer:
         await aiozc.async_register_service(self._mdns)
 
     async def _handle_ws(self, request: web.Request) -> web.WebSocketResponse:
+        """Music Assistant connected: hand the websocket to the Sendspin client until it closes."""
         ws = web.WebSocketResponse(heartbeat=30)
         await ws.prepare(request)
         self.connected = True
@@ -160,10 +170,12 @@ class MaskVisualizer:
 
     # ------------------------------------------------------------ frames
     def _set_playing(self, playing: bool) -> None:
+        """Track whether music is playing (shown on the visualizer switch)."""
         self.playing = playing
         self.hass.loop.call_soon_threadsafe(self.mask.preview_changed)
 
     def _on_frames(self, frames) -> None:
+        """Spectrum/beat frames arrived (Sendspin thread): schedule each one for when its audio plays."""
         loop = self.hass.loop
         client = self._client
         for frame in frames:
@@ -177,11 +189,13 @@ class MaskVisualizer:
                 loop.call_soon_threadsafe(loop.call_later, max(0.0, at), self._beat, strength)
 
     def _beat(self, strength: float) -> None:
+        """A beat: briefly boost the bars (stronger on downbeats)."""
         self._beat_boost = max(self._beat_boost, strength)
 
     def _show(self, raw: list[int]) -> None:
         # auto-gain reference: the loudest bin of the last several seconds (slow decay),
         # so normal passages sit well below full height and only peaks reach the top
+        """Turn one raw spectrum frame into 12 bar heights (0-15) and keep it for the send loop."""
         top = max(raw) if raw else 0
         self._peak = max(top, self._peak * 0.997, 3000.0)
         boost = 1.0 + 0.25 * self._beat_boost
@@ -209,6 +223,7 @@ class MaskVisualizer:
         self._active = False
 
     async def _send_loop(self) -> None:
+        """Send the newest bars ~15 times a second; give the face back when frames stop."""
         while True:
             await asyncio.sleep(SEND_INTERVAL)
             now = self.hass.loop.time()
@@ -226,6 +241,7 @@ class MaskVisualizer:
                 await self._end_bars()
 
     async def _end_bars(self) -> None:
+        """Music stopped: leave bar mode and go back to the chosen face (unless an assistant face is up)."""
         self._active = False
         if self.mask.holding_music or not self.mask.state.is_on:
             return  # never cover the assistant face, never wake a switched-off mask

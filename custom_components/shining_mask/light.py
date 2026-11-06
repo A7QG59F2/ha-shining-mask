@@ -12,7 +12,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import MaskConfigEntry
+from . import MaskConfigEntry, protocol as p
 from .const import DOMAIN, TEXT_MODES
 from .entity import MaskEntity
 
@@ -20,6 +20,7 @@ SLOT = vol.All(vol.Coerce(int), vol.Range(min=1, max=255))
 
 
 def _slots(value: Any) -> list[int]:
+    """Validate one number or a comma list of numbers (1-255), e.g. '1, 2, 3'."""
     if isinstance(value, int):
         return [value]
     if isinstance(value, str):
@@ -120,6 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
 
 
 class MaskLight(MaskEntity, LightEntity):
+    """The mask itself: on/off and brightness. All mask actions are registered on this entity."""
     _attr_name = None  # use device name
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
@@ -161,15 +163,19 @@ class MaskLight(MaskEntity, LightEntity):
 
     # ---------------------------------------------------------------- services
     async def svc_show_image(self, image: int) -> None:
+        """Action: show a built-in image (it becomes the chosen face)."""
         await self.mask.async_show_image(image)
 
     async def svc_show_animation(self, animation: int) -> None:
+        """Action: play a built-in animation (it becomes the chosen face)."""
         await self.mask.async_show_animation(animation)
 
     async def svc_play_diy(self, slots: list[int], speed: int | None = None) -> None:
+        """Action: play DIY slots, optionally at a speed."""
         await self.mask.async_play_diy(slots, speed)
 
     async def svc_show_face(self, kind: str, value: str, speed: int | None = None, temporary: bool = False) -> None:
+        """Action: show any kind of face; temporary=True for assistant faces that shouldn't stick."""
         if kind == "pack":
             await self.mask.async_play_role(value.strip().lower(), speed)
             return
@@ -185,6 +191,7 @@ class MaskLight(MaskEntity, LightEntity):
             await self.mask.async_play_diy(slots, speed, temporary)
 
     async def svc_install_face_pack(self, folder: str, start_slot: int = 10, fit: str = "auto") -> dict[str, Any]:
+        """Action: upload a folder of face pictures into DIY slots and map them to assistant roles."""
         from .facepack import list_packs, path_allowed, plan_pack, resolve_folder
         from .graphics import fit_image
 
@@ -242,6 +249,7 @@ class MaskLight(MaskEntity, LightEntity):
         }
 
     async def svc_loop_animations(self) -> None:
+        """Action: loop through the mask's animations."""
         await self.mask.async_animation_loop()
 
     async def svc_rhythm(self, levels: str, mode: int = 0, interval: float = 0.08) -> None:
@@ -260,6 +268,7 @@ class MaskLight(MaskEntity, LightEntity):
         await self.mask.async_rhythm(mode, frames, interval)
 
     async def svc_stop_rhythm(self) -> None:
+        """Action: leave music-bar mode and show the last face again."""
         await self.mask.async_exit_rhythm()
 
     async def svc_set_gesture(
@@ -269,20 +278,27 @@ class MaskLight(MaskEntity, LightEntity):
         circulation: str | None = None,
         items: str | None = None,
     ) -> None:
+        # items: face numbers for the chosen library ("1, 4, 7-9"); no limit - long lists are
+        # sent in several packets. Empty string clears the list.
+        """Action: set the gesture face switch (on/off, library, circulation, faces)."""
         item_list = None
         if items is not None:
-            item_list = _slots(items) if items.strip() else []
-            if len(item_list) > 7:
-                raise ServiceValidationError("Gesture face switch takes at most 7 pictures")
+            try:
+                item_list = p.parse_number_list(items)
+            except ValueError as err:
+                raise ServiceValidationError(f"Use face numbers like '1, 4, 7-9' ({err})") from err
         await self.mask.async_set_gesture(enabled, library, circulation, item_list)
 
     async def svc_set_music_hold(self, hold: bool) -> None:
+        """Action: hold the music bars off while the assistant face is up (used by the blueprint)."""
         await self.mask.async_set_music_hold(hold)
 
     async def svc_restore_selected(self) -> None:
+        """Action: go back to the chosen face (does nothing while music bars are up)."""
         await self.mask.async_restore_selected()
 
     async def svc_set_text(self, text: str, color, mode: str, speed: int | None = None) -> None:
+        """Action: show text with a colour, mode and speed."""
         await self.mask.async_set_text(text, color, TEXT_MODES[mode], speed)
 
     async def _upload_canvas(self, slot: int, make_canvas) -> None:
@@ -302,6 +318,7 @@ class MaskLight(MaskEntity, LightEntity):
         self.mask.preview_changed()
 
     async def svc_upload_image(self, slot: int, path: str | None = None, builtin: str | None = None) -> None:
+        """Action: upload a picture or built-in face into a DIY slot."""
         from .graphics import BUILTIN_FACES, fit_image
 
         if builtin:
@@ -332,6 +349,7 @@ class MaskLight(MaskEntity, LightEntity):
             raise ServiceValidationError("Provide either path or builtin")
 
     async def svc_install_default_faces(self) -> None:
+        """Action: upload the built-in assistant faces into DIY slots 1-7."""
         from .graphics import BUILTIN_FACES, DEFAULT_SLOTS, fit_image
 
         for slot, name in DEFAULT_SLOTS.items():
@@ -341,6 +359,7 @@ class MaskLight(MaskEntity, LightEntity):
         await self.mask.async_check()
 
     async def svc_generate_dashboard(self, columns: int = 4) -> dict[str, Any]:
+        """Action: write the face-picker card, the panel view and the settings card as YAML."""
         import yaml
 
         from .previews import build_dashboard, builtin_dir, root, scan_builtin
@@ -401,6 +420,19 @@ class MaskLight(MaskEntity, LightEntity):
             items = [{"entity": e, "name": n} for d, k, n in rows if (e := ent(d, k))]
             return {"type": "entities", "title": title, "state_color": True, "entities": items}
 
+        # Gesture: on/off, library, then the face list - shown only when the library has one to
+        # pick (gallery/diy), the way the app opens its picker - then circulation.
+        gesture = section("Gesture", [("switch", "gesture_switch", "On / off"),
+                                      ("select", "gesture_library", "Library")])
+        library, faces = ent("select", "gesture_library"), ent("text", "gesture_faces")
+        if library and faces:
+            gesture["entities"].append({
+                "type": "conditional",
+                "conditions": [{"entity": library, "state_not": "all"}],
+                "row": {"entity": faces, "name": "Faces (image numbers / DIY slots)"},
+            })
+        gesture["entities"] += section("", [("select", "gesture_circulation", "Circulation")])["entities"]
+
         return {
             "type": "vertical-stack",
             "cards": [
@@ -416,16 +448,16 @@ class MaskLight(MaskEntity, LightEntity):
                                        ("number", "bars_contrast", "Contrast"),
                                        ("number", "bars_bass", "Bass"), ("number", "bars_mid", "Mid"),
                                        ("number", "bars_treble", "Treble"), ("number", "bars_delay", "Delay")]),
-                section("Gesture", [("switch", "gesture_switch", "On / off"),
-                                    ("select", "gesture_library", "Library"),
-                                    ("select", "gesture_circulation", "Circulation")]),
+                gesture,
             ],
         }
 
     async def svc_delete_diy(self, slots: list[int]) -> None:
+        """Action: delete DIY slots."""
         await self.mask.async_delete_diy(slots)
 
     async def svc_send_command(self, command: str, args: str = "") -> None:
+        """Action: send a raw command tag + hex arguments, for experimenting."""
         try:
             raw = bytes.fromhex(args.replace(" ", ""))
             await self.mask.async_raw(command.upper(), raw)
@@ -474,6 +506,7 @@ class _ColorLight(MaskEntity, LightEntity):
 
 
 class MaskTextColorLight(_ColorLight):
+    """Text colour as a colour light: on = use the colour, colour picker = the colour."""
     _attr_name = "Text color"
     _attr_icon = "mdi:format-color-text"
     _key = "text_color"
@@ -486,6 +519,7 @@ class MaskTextColorLight(_ColorLight):
 
 
 class MaskBackgroundLight(_ColorLight):
+    """Background colour behind text, as a colour light."""
     _attr_name = "Text background color"
     _attr_icon = "mdi:format-color-fill"
     _key = "bg_color"

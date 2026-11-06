@@ -9,6 +9,7 @@ from .device import ShiningMask
 
 
 class MaskEntity(Entity):
+    """Base for every mask entity: shared device info, unique id, and live updates from the mask."""
     _attr_has_entity_name = True
     _attr_should_poll = False
 

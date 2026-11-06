@@ -17,6 +17,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
 
 
 class MaskTextModeSelect(MaskEntity, SelectEntity):
+    """How uploaded text moves: steady, blink, scroll left or right."""
     _attr_translation_key = "text_mode"
     _attr_name = "Text mode"
     _attr_icon = "mdi:format-text-variant"

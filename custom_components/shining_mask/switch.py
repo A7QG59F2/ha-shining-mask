@@ -17,6 +17,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
 
 
 class MaskGestureSwitch(MaskEntity, SwitchEntity):
+    """Gesture face switch on/off (app: gesture page). Faces/library are separate entities."""
     _attr_name = "Gesture"
     _attr_icon = "mdi:hand-wave"
     _attr_assumed_state = True
@@ -31,7 +32,7 @@ class MaskGestureSwitch(MaskEntity, SwitchEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         s = self.mask.state
-        return {"library": s.gesture_library, "circulation": s.gesture_circulation, "items": s.gesture_items}
+        return {"library": s.gesture_library, "circulation": s.gesture_circulation, "faces": self.mask.gesture_items()}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.mask.async_set_gesture(enable=True)

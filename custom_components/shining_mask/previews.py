@@ -25,14 +25,17 @@ PREVIEW_SCALE = 6
 
 
 def root(hass: HomeAssistant) -> Path:
+    """The integration's folder in /config (shining_mask), created if missing."""
     return Path(hass.config.path(ROOT))
 
 
 def diy_dir(hass: HomeAssistant) -> Path:
+    """Where previews of uploaded DIY slots are kept (slot_N.png)."""
     return root(hass) / "diy"
 
 
 def builtin_dir(hass: HomeAssistant) -> Path:
+    """Where you put pictures of the built-in images (N.bmp) and animations (N.gif)."""
     return root(hass) / "builtin"
 
 
@@ -68,6 +71,7 @@ def save_diy_preview(hass: HomeAssistant, slot: int, canvas) -> None:
 
 @dataclass
 class BuiltinPic:
+    """One picture found in the builtin folder: what it shows (image/animation N) and its URL."""
     kind: str  # "image" | "animation"
     number: int | None
     path: Path
@@ -102,6 +106,7 @@ def scan_builtin(hass: HomeAssistant) -> list[BuiltinPic]:
 
 
 def scan_diy(hass: HomeAssistant) -> dict[int, Path]:
+    """Slot number -> preview file for every DIY preview saved so far."""
     d = diy_dir(hass)
     if not d.is_dir():
         return {}
@@ -109,6 +114,7 @@ def scan_diy(hass: HomeAssistant) -> dict[int, Path]:
 
 
 def find_builtin(hass: HomeAssistant, kind: str, number: int) -> Path | None:
+    """Preview file for built-in image or animation N, if you've added one."""
     for pic in scan_builtin(hass):
         if pic.kind == kind and pic.number == number:
             return pic.path
@@ -116,6 +122,7 @@ def find_builtin(hass: HomeAssistant, kind: str, number: int) -> Path | None:
 
 
 def _card(image_url: str, action: str, data: dict, entity_id: str, label: str) -> dict:
+    """One tap-to-show picture card for the dashboard grid."""
     return {
         "type": "picture",
         "image": image_url,

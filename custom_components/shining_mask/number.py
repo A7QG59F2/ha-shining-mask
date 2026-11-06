@@ -29,6 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
 
 
 class MaskImageNumber(MaskEntity, NumberEntity):
+    """Show built-in image N (becomes the chosen face)."""
     _attr_translation_key = "image"
     _attr_name = "Face image"
     _attr_icon = "mdi:emoticon-outline"
@@ -49,6 +50,7 @@ class MaskImageNumber(MaskEntity, NumberEntity):
 
 
 class MaskAnimationNumber(MaskEntity, NumberEntity):
+    """Play built-in animation N (becomes the chosen face)."""
     _attr_translation_key = "animation"
     _attr_name = "Face animation"
     _attr_icon = "mdi:animation-play"
@@ -69,6 +71,7 @@ class MaskAnimationNumber(MaskEntity, NumberEntity):
 
 
 class MaskSpeedNumber(MaskEntity, NumberEntity):
+    """Animation / DIY / text speed."""
     _attr_translation_key = "speed"
     _attr_name = "Face speed"
     _attr_icon = "mdi:speedometer"

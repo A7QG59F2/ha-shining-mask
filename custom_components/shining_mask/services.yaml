@@ -134,7 +134,7 @@ set_gesture:
         select:
           options: [order, random]
     items:
-      example: "1,2,3"
+      example: "1, 4, 7-9"
       selector:
         text:
 
@@ -224,7 +224,7 @@ delete_diy:
   fields:
     slots:
       required: true
-      example: "1,2,3"
+      example: "1, 4, 7-9"
       selector:
         text:
 

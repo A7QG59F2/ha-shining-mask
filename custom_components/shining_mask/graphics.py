@@ -71,6 +71,7 @@ L_EYE_X, R_EYE_X = 13, 32
 
 
 def _eyes(d: ImageDraw.ImageDraw, color, rx=5, ry=7, dy=0, pupil=True):
+    """Draw the two eyes used by the built-in faces."""
     for cx in (L_EYE_X, R_EYE_X):
         d.ellipse((cx - rx, EYE_Y + dy - ry, cx + rx, EYE_Y + dy + ry), fill=color)
         if pupil:
@@ -78,11 +79,13 @@ def _eyes(d: ImageDraw.ImageDraw, color, rx=5, ry=7, dy=0, pupil=True):
 
 
 def _new():
+    """A blank black canvas the size of the mask."""
     img = Image.new("RGB", (W, H), (0, 0, 0))
     return img, ImageDraw.Draw(img)
 
 
 def face_idle():
+    """Built-in face: cyan eyes and a small smile."""
     img, d = _new()
     _eyes(d, CYAN)
     d.arc((14, 34, 31, 46), 20, 160, fill=CYAN, width=2)  # small smile
@@ -90,6 +93,7 @@ def face_idle():
 
 
 def face_sleep():
+    """Built-in face: purple closed eyes, flat mouth."""
     img, d = _new()
     for cx in (L_EYE_X, R_EYE_X):
         d.arc((cx - 5, EYE_Y - 3, cx + 5, EYE_Y + 5), 20, 160, fill=PURPLE, width=2)
@@ -98,6 +102,7 @@ def face_sleep():
 
 
 def face_listening():
+    """Built-in face: big green eyes and a little "o" mouth."""
     img, d = _new()
     _eyes(d, GREEN, rx=6, ry=9)
     d.ellipse((19, 37, 27, 45), outline=GREEN, width=2)  # little "o"
@@ -105,6 +110,7 @@ def face_listening():
 
 
 def face_thinking():
+    """Built-in face: amber eyes raised, three dots for a mouth."""
     img, d = _new()
     _eyes(d, AMBER, ry=6, dy=-2)
     for x in (15, 23, 31):
@@ -113,6 +119,7 @@ def face_thinking():
 
 
 def face_talk_closed():
+    """Built-in face: talking, mouth closed (paired with talk_open)."""
     img, d = _new()
     _eyes(d, CYAN)
     d.line((14, 40, 32, 40), fill=CYAN, width=3)
@@ -120,6 +127,7 @@ def face_talk_closed():
 
 
 def face_talk_open():
+    """Built-in face: talking, mouth open."""
     img, d = _new()
     _eyes(d, CYAN)
     d.ellipse((14, 34, 32, 50), fill=CYAN)
@@ -128,6 +136,7 @@ def face_talk_open():
 
 
 def face_error():
+    """Built-in face: red X eyes and a frown."""
     img, d = _new()
     for cx in (L_EYE_X, R_EYE_X):
         d.line((cx - 5, EYE_Y - 5, cx + 5, EYE_Y + 5), fill=RED, width=3)
@@ -137,6 +146,7 @@ def face_error():
 
 
 def face_blank():
+    """All black: used as the real 'off' picture."""
     return _new()[0]
 
 

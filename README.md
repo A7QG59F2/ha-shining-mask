@@ -30,7 +30,12 @@ Entity names start with their section, so the device page groups them:
 | Face | Face image, Face animation, Face speed |
 | Text | Text, Text effect, Text mode, Text color, Text background color |
 | Visualizer | Visualizer (on/off), style, sensitivity, contrast, bass, mid, treble, delay |
-| Gesture | Gesture (on/off), Gesture library, Gesture circulation |
+| Gesture | Gesture (on/off), Gesture library, Gesture faces, Gesture circulation |
+
+**Gesture faces** works like the app's picker after you choose a library. Type face numbers such as
+`1, 4, 7-9`, in the order you want them. With library `gallery` they are built-in image numbers. With
+`diy` they are DIY slot numbers. Each library keeps its own list. There's no 7-face limit: longer lists
+are sent in several packets, the way the app does it.
 
 For a card with every setting in that order, run `shining_mask.generate_dashboard` (tick *return
 response*). It writes `/config/shining_mask/settings_card.yaml`. Paste that into a dashboard via

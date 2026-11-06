@@ -26,6 +26,7 @@ import protocol as p  # noqa: E402
 
 
 async def find(address):
+    """Scan for a mask advertising nearby and return it."""
     if address:
         return address
     dev = await BleakScanner.find_device_by_filter(lambda d, ad: (d.name or "").upper().startswith("MASK"), 10)
@@ -36,6 +37,7 @@ async def find(address):
 
 
 async def upload(client, q, start, payload):
+    """Upload a picture or built-in face into a DIY slot over a direct bleak connection."""
     await client.write_gatt_char(p.CMD_UUID, start, response=False)
     print("start ->", await asyncio.wait_for(q.get(), 5))
     for pkt in p.upload_packets(payload):
@@ -49,6 +51,7 @@ async def upload(client, q, start, payload):
 
 
 async def main(a):
+    """Command line: scan, light, image, anim, play, text, upload, check (see --help)."""
     if a.cmd == "scan":
         for d in await BleakScanner.discover(8):
             if (d.name or "").upper().startswith("MASK"):

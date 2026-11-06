@@ -25,6 +25,7 @@ PACKET_ACK_TIMEOUT = 2.0
 
 @dataclass
 class MaskState:
+    """Everything we know or last sent to the mask. The mask never reports back, so this is our memory."""
     brightness: int = 255
     is_on: bool = True
     image: int | None = None
@@ -51,7 +52,10 @@ class MaskState:
     gesture_on: bool = False
     gesture_library: str = "all"
     gesture_circulation: str = "order"
-    gesture_items: list[int] = field(default_factory=list)
+    # faces picked for the gesture face switch, kept per library like the app does
+    # (gallery = built-in image numbers, diy = DIY slot numbers)
+    gesture_gallery_items: list[int] = field(default_factory=list)
+    gesture_diy_items: list[int] = field(default_factory=list)
     visualizer_on: bool = False
     visualizer_style: int = 0
     visualizer_delay_ms: int = 0
@@ -63,6 +67,10 @@ class MaskState:
 
 
 class ShiningMask:
+    """One mask: the Bluetooth link, every command, saved state, and the screen-priority rules.
+
+    Screen priority (highest first): assistant face (music_hold) > music bars > chosen face.
+    """
     def __init__(
         self,
         hass: HomeAssistant,
@@ -129,7 +137,11 @@ class ShiningMask:
         s.gesture_on = bool(data.get("gesture_on", False))
         s.gesture_library = data.get("gesture_library", "all")
         s.gesture_circulation = data.get("gesture_circulation", "order")
-        s.gesture_items = [int(v) for v in data.get("gesture_items", [])]
+        s.gesture_gallery_items = [int(v) for v in data.get("gesture_gallery_items", [])]
+        s.gesture_diy_items = [int(v) for v in data.get("gesture_diy_items", [])]
+        # before 0.17 there was one list; keep it for whichever library was selected then
+        if "gesture_items" in data and s.gesture_library in ("gallery", "diy"):
+            setattr(s, f"gesture_{s.gesture_library}_items", [int(v) for v in data["gesture_items"]])
         s.visualizer_on = bool(data.get("visualizer_on", False))
         s.visualizer_style = max(0, min(4, int(data.get("visualizer_style", 0))))
         s.visualizer_delay_ms = int(data.get("visualizer_delay_ms", 0))
@@ -138,6 +150,7 @@ class ShiningMask:
         s.bars_contrast = float(data.get("bars_contrast", 1.6))
 
     def _data_to_save(self) -> dict:
+        """The parts of the state that survive a restart (written to .storage)."""
         s = self.state
         return {
             "selected": [s.selected[0], s.selected[1]] if s.selected else None,
@@ -160,7 +173,8 @@ class ShiningMask:
             "gesture_on": s.gesture_on,
             "gesture_library": s.gesture_library,
             "gesture_circulation": s.gesture_circulation,
-            "gesture_items": s.gesture_items,
+            "gesture_gallery_items": s.gesture_gallery_items,
+            "gesture_diy_items": s.gesture_diy_items,
             "visualizer_on": s.visualizer_on,
             "visualizer_style": s.visualizer_style,
             "visualizer_delay_ms": s.visualizer_delay_ms,
@@ -174,26 +188,31 @@ class ShiningMask:
     # ------------------------------------------------------------ listeners
     @callback
     def async_add_listener(self, cb: Callable[[], None]) -> Callable[[], None]:
+        """Register an entity callback for state changes; returns the unsubscribe function."""
         self._listeners.append(cb)
         return lambda: self._listeners.remove(cb)
 
     @callback
     def _notify_listeners(self) -> None:
+        """Tell every entity to refresh, and schedule a save of the state."""
         self._store.async_delay_save(self._data_to_save, 5)
         for cb in list(self._listeners):
             cb()
 
     @callback
     def preview_changed(self) -> None:
+        """Previews/thumbnails changed on disk: bump the version so image entities reload."""
         self.preview_version += 1
         self._notify_listeners()
 
     @callback
     def set_ble_device(self, device: BLEDevice) -> None:
+        """Remember the newest BLEDevice from an advertisement (picks the best adapter/proxy)."""
         self._ble_device = device
 
     # ------------------------------------------------------------ connection
     async def _ensure_connected(self) -> BleakClientWithServiceCache:
+        """Return a connected client, connecting (and finding the characteristics) if needed."""
         if self._client and self._client.is_connected:
             return self._client
         device = bluetooth.async_ble_device_from_address(self.hass, self.address, connectable=True) or self._ble_device
@@ -287,16 +306,19 @@ class ShiningMask:
         return cmd, notify, up
 
     def _on_disconnect(self, _client) -> None:
+        """Bleak callback (may run off the event loop): hand the disconnect to the loop."""
         _LOGGER.debug("%s disconnected", self.address)
         self._client = None
         self.hass.loop.call_soon_threadsafe(self._mark_disconnected)
 
     @callback
     def _mark_disconnected(self) -> None:
+        """Forget the client and show 'not connected' on the entities."""
         self.state.connected = False
         self._notify_listeners()
 
     def _on_notification(self, _char, data: bytearray) -> None:
+        """Decrypt a notification from the mask (DATSOK, REOK, FACEOK, CHEC...) and queue it."""
         try:
             msg = p.parse_notification(bytes(data))
         except Exception:  # noqa: BLE001
@@ -309,6 +331,7 @@ class ShiningMask:
         self._notify.put_nowait(msg)
 
     async def _expect(self, prefix: str, timeout: float) -> bool:
+        """Wait up to `timeout` seconds for a notification starting with `prefix`; False on timeout."""
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout
         while True:
@@ -323,10 +346,12 @@ class ShiningMask:
                 return True
 
     def _drain(self) -> None:
+        """Throw away queued notifications, so the next _expect only sees fresh answers."""
         while not self._notify.empty():
             self._notify.get_nowait()
 
     def _schedule_idle_disconnect(self) -> None:
+        """Disconnect after the configured idle time (0 = stay connected)."""
         if self._idle_handle:
             self._idle_handle.cancel()
             self._idle_handle = None
@@ -336,6 +361,7 @@ class ShiningMask:
             )
 
     async def async_disconnect(self) -> None:
+        """Close the Bluetooth link now."""
         async with self._lock:
             if self._client:
                 client, self._client = self._client, None
@@ -348,9 +374,11 @@ class ShiningMask:
 
     # ------------------------------------------------------------ primitives
     async def _write_cmd(self, client, packet: bytes) -> None:
+        """Write one encrypted 16-byte packet to the command characteristic."""
         await client.write_gatt_char(self._cmd_char, packet, response=self._cmd_response)
 
     async def _drop(self) -> None:
+        """Close and forget the current client after an error, so the next send reconnects."""
         client, self._client = self._client, None
         if client:
             try:
@@ -380,6 +408,7 @@ class ShiningMask:
             self._schedule_idle_disconnect()
 
     async def async_upload(self, start_packet: bytes, payload: bytes) -> None:
+        """Upload a text bitmap or DIY image: start packet, data packets (each answered REOK), finish."""
         async with self._lock:
             client = await self._ensure_connected()
             self._drain()
@@ -403,6 +432,7 @@ class ShiningMask:
         return max(1, round(value * self.max_brightness / 255))
 
     async def async_set_brightness(self, value: int) -> None:
+        """Set brightness 0-255; scaled down to the brightness cap so the mask doesn't flicker."""
         if value <= 0:
             await self.async_turn_off()
             return
@@ -418,6 +448,7 @@ class ShiningMask:
         await self.async_set_brightness(brightness or self.state.brightness or 255)
 
     async def _ensure_blank(self) -> None:
+        """Make sure the all-black DIY slot exists (used for 'off', which really goes dark)."""
         if self._blank_uploaded:
             return
         from .graphics import face_blank, image_to_payload
@@ -459,6 +490,7 @@ class ShiningMask:
         return []
 
     async def _restore_face(self) -> None:
+        """Show again whatever was last on screen (image, animation or DIY), e.g. after leaving bar mode."""
         s = self.state
         if s.diy:
             await self.async_send(p.cmd_play(s.diy))
@@ -485,6 +517,7 @@ class ShiningMask:
         return True
 
     async def async_show_image(self, index: int, temporary: bool = False) -> None:
+        """Show built-in image `index`. temporary=True (assistant faces) doesn't change the chosen face."""
         if self._covered_by_bars("image", [index], temporary):
             return
         await self._wake()
@@ -495,6 +528,7 @@ class ShiningMask:
         self._notify_listeners()
 
     async def async_show_animation(self, index: int, temporary: bool = False) -> None:
+        """Play built-in animation `index`. temporary=True doesn't change the chosen face."""
         if self._covered_by_bars("animation", [index], temporary):
             return
         await self._wake()
@@ -532,6 +566,7 @@ class ShiningMask:
         await self.async_play_diy(slots, speed, temporary=True)
 
     async def async_play_diy(self, slots: Sequence[int], speed: int | None = None, temporary: bool = False) -> None:
+        """Play DIY slots (one = still picture, several = animation). temporary=True keeps the chosen face."""
         packets = []
         if speed is not None:
             packets.append(p.cmd_speed(speed))
@@ -548,17 +583,20 @@ class ShiningMask:
         self._notify_listeners()
 
     async def async_set_speed(self, speed: int) -> None:
+        """Animation / DIY / text speed (0-255)."""
         await self.async_send(p.cmd_speed(speed))
         self.state.speed = speed
         self._notify_listeners()
 
     async def async_set_text_color(self, rgb: Sequence[int] | None, enable: bool) -> None:
+        """Text colour: rgb plus whether the custom colour is on (FC command)."""
         rgb = list(rgb) if rgb is not None else self.state.text_color
         await self.async_send(p.cmd_front_color(rgb, enable))
         self.state.text_color, self.state.text_color_on = rgb, enable
         self._notify_listeners()
 
     async def async_set_bg_color(self, rgb: Sequence[int] | None, enable: bool) -> None:
+        """Background colour behind text: rgb plus on/off (BC command)."""
         rgb = list(rgb) if rgb is not None else self.state.bg_color
         await self.async_send(p.cmd_back_color(rgb, enable))
         self.state.bg_color, self.state.bg_color_on = rgb, enable
@@ -566,11 +604,13 @@ class ShiningMask:
 
     async def async_set_text_effect(self, name: str, value: int | None) -> None:
         # solid = effects off
+        """Text effect: solid, colour gradients, or animated backgrounds (M command)."""
         await self.async_send(p.cmd_text_color_mode(value or 0, value is not None))
         self.state.text_effect = name
         self._notify_listeners()
 
     async def async_animation_loop(self) -> None:
+        """Make the mask loop through its animations (LOOA command)."""
         await self._wake()
         await self.async_send(p.cmd_animation_loop())
         self.state.image, self.state.animation, self.state.diy = None, None, []
@@ -641,6 +681,7 @@ class ShiningMask:
         self._notify_listeners()
 
     def _apply_tuning(self) -> None:
+        """Copy the saved bar settings (style, delay, sensitivity, EQ) to the running visualizer."""
         v, s = self.visualizer, self.state
         if v is None:
             return
@@ -649,6 +690,11 @@ class ShiningMask:
         v.contrast = s.bars_contrast
         v.eq = (s.bars_bass / 100, s.bars_mid / 100, s.bars_treble / 100)
 
+    def gesture_items(self, library: str | None = None) -> list[int]:
+        """Faces picked for a library ('gallery' or 'diy'); 'all' has none."""
+        lib = library or self.state.gesture_library
+        return list(getattr(self.state, f"gesture_{lib}_items", []))
+
     async def async_set_gesture(
         self,
         enable: bool | None = None,
@@ -656,24 +702,54 @@ class ShiningMask:
         circulation: str | None = None,
         items: Sequence[int] | None = None,
     ) -> None:
-        """Update any gesture setting and send the full FACE packet."""
+        """Change any gesture setting and send the complete setting to the mask.
+
+        Anything left as None keeps its current value. `items` are the face numbers for the
+        library being set (built-in image numbers for 'gallery', DIY slots for 'diy').
+        """
         s = self.state
         on = s.gesture_on if enable is None else enable
         lib = library or s.gesture_library
         circ = circulation or s.gesture_circulation
-        picked = list(s.gesture_items if items is None else items)[:7]
-        await self.async_send(
-            p.cmd_gesture(on, p.GESTURE_LIBRARIES[lib], p.GESTURE_CIRCULATION[circ], picked)
-        )
-        s.gesture_on, s.gesture_library, s.gesture_circulation, s.gesture_items = on, lib, circ, picked
+        picked = self.gesture_items(lib) if items is None else list(items)
+        if on and lib != "all" and not picked:
+            # Nothing picked yet for this library: remember the choice but don't send an empty
+            # list. Setting 'Gesture faces' next sends everything in one go.
+            _LOGGER.info("Gesture library '%s' has no faces picked yet; waiting for Gesture faces", lib)
+        else:
+            packets = p.gesture_packets(on, p.GESTURE_LIBRARIES[lib], p.GESTURE_CIRCULATION[circ], picked)
+            await self._async_send_acked(packets, "FACEOK")
+        s.gesture_on, s.gesture_library, s.gesture_circulation = on, lib, circ
+        if lib != "all":
+            setattr(s, f"gesture_{lib}_items", picked)
         self._notify_listeners()
 
+    async def _async_send_acked(self, packets: Sequence[bytes], ack: str) -> None:
+        """Send packets one by one, waiting for the mask's `ack` notification between them.
+
+        Long gesture lists are split across several packets; the app only sends the next one
+        after the mask answers FACEOK, so we do the same. A single packet needs no wait.
+        """
+        if len(packets) == 1:
+            await self.async_send(packets[0])
+            return
+        async with self._lock:
+            client = await self._ensure_connected()
+            self._drain()  # forget old notifications so we only see this exchange's answers
+            for i, pkt in enumerate(packets):
+                await self._write_cmd(client, pkt)
+                if i < len(packets) - 1 and not await self._expect(ack, ACK_TIMEOUT):
+                    raise HomeAssistantError(f"Mask did not answer {ack} (sent {i + 1} of {len(packets)} packets)")
+            self._schedule_idle_disconnect()
+
     async def async_set_text_mode(self, mode_name: str, mode_value: int) -> None:
+        """Steady, blink or scroll for uploaded text (MODE command)."""
         await self.async_send(p.cmd_text_mode(mode_value))
         self.state.text_mode = mode_name
         self._notify_listeners()
 
     async def async_set_text(self, text: str, color=(255, 255, 255), mode: int | None = None, speed: int | None = None) -> None:
+        """Render `text` to a bitmap, upload it and show it."""
         from .graphics import render_text  # Pillow import off the event-loop hot path
 
         payload, bitmap_len = await self.hass.async_add_executor_job(render_text, text, color)
@@ -690,6 +766,7 @@ class ShiningMask:
         self._notify_listeners()
 
     async def async_upload_image(self, slot: int, payload: bytes) -> None:
+        """Upload a picture (path or built-in face name) into a DIY slot."""
         if len(payload) != p.IMAGE_BYTES:
             raise HomeAssistantError(f"Image payload must be {p.IMAGE_BYTES} bytes")
         await self.async_upload(p.cmd_upload_start_image(len(payload), slot), payload)
@@ -697,10 +774,12 @@ class ShiningMask:
             self._blank_uploaded = payload == bytes(len(payload))
 
     async def async_delete_diy(self, slots: Sequence[int]) -> None:
+        """Delete DIY slots from the mask (DELE command)."""
         for i in range(0, len(slots), 10):
             await self.async_send(p.cmd_delete(list(slots[i : i + 10])))
 
     async def async_check(self) -> int | None:
+        """Ask the mask how many DIY images it holds (CHEC); the answer arrives as a notification."""
         async with self._lock:
             client = await self._ensure_connected()
             self._drain()
@@ -711,4 +790,5 @@ class ShiningMask:
         return self.state.diy_count
 
     async def async_raw(self, tag: str, args: bytes) -> None:
+        """Send any command tag with raw argument bytes, for experimenting."""
         await self.async_send(p.build_command(tag, args))

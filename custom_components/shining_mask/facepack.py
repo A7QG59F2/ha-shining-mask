@@ -34,10 +34,12 @@ _KEYWORDS = (
 
 
 def _natural_key(p: Path):
+    """Sort key so 'face2' comes before 'face10'."""
     return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", p.stem.lower())]
 
 
 def _roots(hass: HomeAssistant) -> list[Path]:
+    """Folders that may hold face packs, in the order they are searched."""
     return [Path(hass.config.path(PACK_ROOT)), Path(hass.config.path("shining_mask", PACK_ROOT))]
 
 
@@ -53,6 +55,7 @@ def resolve_folder(hass: HomeAssistant, folder: str) -> Path:
 
 
 def list_packs(hass: HomeAssistant) -> list[str]:
+    """Names of the face-pack folders found under the pack roots."""
     names = set()
     for root in _roots(hass):
         if root.is_dir():

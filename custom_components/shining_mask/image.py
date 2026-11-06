@@ -21,6 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
 
 
 class MaskCurrentFace(MaskEntity, ImageEntity):
+    """Picture of what the mask is showing now (from your previews), for dashboards."""
     _attr_name = "Face now showing"
     _attr_icon = "mdi:face-man-shimmer"
 
@@ -31,6 +32,7 @@ class MaskCurrentFace(MaskEntity, ImageEntity):
         self._attr_image_last_updated = dt_util.utcnow()
 
     def _current_key(self) -> tuple:
+        """Which preview file matches the current screen, as a cache key."""
         s = self.mask.state
         if not s.is_on:
             return ("off",)
@@ -44,6 +46,7 @@ class MaskCurrentFace(MaskEntity, ImageEntity):
 
     @callback
     def _changed(self) -> None:
+        """The screen or previews changed: refresh the picture."""
         key = self._current_key()
         if key != self._key:
             self._key = key
@@ -55,6 +58,7 @@ class MaskCurrentFace(MaskEntity, ImageEntity):
         self.async_on_remove(self.mask.async_add_listener(self._changed))
 
     def _path(self) -> Path | None:
+        """File path of the preview for what is on screen, or None."""
         key = self._current_key()
         if key[0] == "diy":
             p = diy_dir(self.hass) / f"{key[1]}.png"
@@ -64,6 +68,7 @@ class MaskCurrentFace(MaskEntity, ImageEntity):
         return None
 
     def _read(self) -> tuple[bytes | None, str]:
+        """Read the preview file's bytes (runs in the executor)."""
         path = self._path()
         if path is None:
             return None, "image/png"

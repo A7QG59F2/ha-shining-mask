@@ -49,6 +49,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
 
     @callback
     def _seen(service_info: bluetooth.BluetoothServiceInfoBleak, _change) -> None:
+        """Bluetooth callback: keep the mask's latest BLEDevice so reconnects use the best adapter/proxy."""
         mask.set_ble_device(service_info.device)
 
     entry.async_on_unload(
@@ -70,6 +71,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
 
 
 async def _reload(hass: HomeAssistant, entry: MaskConfigEntry) -> None:
+    """Reload the entry when its options change (new proxy timeout, limits, port...)."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
