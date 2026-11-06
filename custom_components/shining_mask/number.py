@@ -19,7 +19,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             MaskImageNumber(mask, entry.options.get(CONF_MAX_IMAGE, DEFAULT_MAX_IMAGE)),
             MaskAnimationNumber(mask, entry.options.get(CONF_MAX_ANIMATION, DEFAULT_MAX_ANIMATION)),
             MaskSpeedNumber(mask),
-            MaskBarsStyleNumber(mask),
             MaskBarsDelayNumber(mask),
             MaskBarsTuneNumber(mask, "bars_sensitivity", "Music bars sensitivity", "mdi:tune-vertical", 10, 300, 5, "%"),
             MaskBarsTuneNumber(mask, "bars_contrast", "Music bars contrast", "mdi:contrast-box", 1.0, 3.0, 0.1, None),
@@ -88,27 +87,6 @@ class MaskSpeedNumber(MaskEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         await self.mask.async_set_speed(int(value))
-
-
-class MaskBarsStyleNumber(MaskEntity, NumberEntity):
-    """Rhythm effect used for the music bars (the app's rhythm styles)."""
-
-    _attr_name = "Music bars style"
-    _attr_icon = "mdi:chart-bar"
-    _attr_native_min_value = 0
-    _attr_native_max_value = 4  # five styles (0-4); 5+ freezes the mask
-    _attr_native_step = 1
-    _attr_mode = NumberMode.BOX
-
-    def __init__(self, mask) -> None:
-        super().__init__(mask, "bars_style")
-
-    @property
-    def native_value(self):
-        return self.mask.state.visualizer_style
-
-    async def async_set_native_value(self, value: float) -> None:
-        self.mask.set_visualizer_tuning(style=int(value))
 
 
 class MaskBarsDelayNumber(MaskEntity, NumberEntity):

@@ -211,7 +211,7 @@
       "fields": {
         "mode": {
           "name": "Rhythm effect",
-          "description": "Visualiser style number (the app's rhythm effects)."
+          "description": "Bar style: 0 Rainbow, 1 Warm, 2 Cool, 3 Mirror, 4 Vertical."
         },
         "levels": {
           "name": "Levels",

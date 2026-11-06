@@ -103,7 +103,7 @@ playback, to Sendspin "visualizer" clients. The mask can be one of those clients
 2. In Music Assistant, approve the new **"MASK-… (mask)"** Sendspin client if it asks.
 3. Group it with the player you're listening to (a Sendspin player or a bridged speaker).
    When that player plays, the mask shows the bars; about 2 s after the music stops, its face returns.
-- `number.…_music_bars_style`: rhythm effect used for the bars.
+- `select.…_music_bars_style`: Rainbow, Warm, Cool, Mirror or Vertical.
 - `number.…_music_bars_delay`: shift the bars later (+) or earlier (−) if they don't line up with
   what you hear (e.g. a speaker that adds its own delay).
 - **The assistant face always wins:** the voice-face blueprint pauses the bars while the assistant is

@@ -38,3 +38,6 @@ TEXT_EFFECTS = {
 
 CONF_VISUALIZER_PORT = "visualizer_port"
 DEFAULT_VISUALIZER_PORT = 8928
+
+# music-bars (rhythm) styles, mode byte 0-4
+BAR_STYLES = {"Rainbow": 0, "Warm": 1, "Cool": 2, "Mirror": 3, "Vertical": 4}

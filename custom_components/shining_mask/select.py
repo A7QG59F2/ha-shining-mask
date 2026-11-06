@@ -7,13 +7,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import MaskConfigEntry
-from .const import TEXT_EFFECTS, TEXT_MODES
+from .const import BAR_STYLES, TEXT_EFFECTS, TEXT_MODES
 from .entity import MaskEntity
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     m = entry.runtime_data
-    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m)])
+    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m)])
 
 
 class MaskTextModeSelect(MaskEntity, SelectEntity):
@@ -85,3 +85,22 @@ class MaskGestureCirculationSelect(MaskEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         await self.mask.async_set_gesture(circulation=option)
+
+
+class MaskBarsStyleSelect(MaskEntity, SelectEntity):
+    """Look of the music bars (the mask's five rhythm styles)."""
+
+    _attr_name = "Music bars style"
+    _attr_icon = "mdi:chart-bar"
+    _attr_options = list(BAR_STYLES)
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "bars_style_select")
+
+    @property
+    def current_option(self) -> str:
+        by_value = {v: k for k, v in BAR_STYLES.items()}
+        return by_value.get(self.mask.state.visualizer_style, "Rainbow")
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_visualizer_tuning(style=BAR_STYLES[option])
