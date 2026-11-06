@@ -23,7 +23,11 @@ DEFAULT_MAX_BRIGHTNESS = 128  # 0x80 tested clean; slight flicker reported at 16
 DEFAULT_BLANK_SLOT = 9  # DIY slot holding an all-black frame, used for "off"
 # The mask refuses DIY uploads above slot 34 (tested: 34 accepted, 35 and up get no DATSOK).
 MAX_DIY_SLOT = 34
-CLOCK_FIRST_SLOT = 31  # clock screen uses DIY slots 31-34 (two frames x two buffers)
+CLOCK_FIRST_SLOT = 31  # picture clock uses DIY slots 31-34 (two frames x two buffers)
+# Shared pool: the digit-flip clock keeps digits 0-9, a colon and an info screen here, and
+# effects (Matrix) upload into it when you call them. Whoever uploaded last owns it; the
+# digit clock re-uploads its digits the next time it is shown after an effect used the pool.
+SHARED_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 26, 27, 28, 29]
 
 TEXT_MODES = {
     "steady": 1,

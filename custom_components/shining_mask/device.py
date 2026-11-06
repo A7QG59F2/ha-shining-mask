@@ -70,6 +70,8 @@ class MaskState:
     clock_prev: tuple[str, list[int]] | None = None  # chosen face before the clock was switched on
     clock_theme: str = "Classic"  # colours of time/temperature/date (clockface.CLOCK_THEMES)
     clock_motion: str = "Animated"  # "Animated" = 2 frames a minute, "Still" = 1 (less upload arrow)
+    clock_style: str = "Picture"  # "Picture" (uploads each minute) or "Digit flip" (no uploads)
+    clock_digits: str | None = None  # theme the digit-flip digits were uploaded in (None = not there)
     # voice-assistant face (see assist.py)
     assist_satellite: str | None = None  # assist_satellite entity to follow; None = off
     assist_faces: dict[str, str] = field(default_factory=dict)  # listening/thinking/talking/idle/error -> choice
@@ -169,6 +171,8 @@ class ShiningMask:
         s.clock_speed = int(data.get("clock_speed", 230))
         s.clock_theme = data.get("clock_theme", "Classic")
         s.clock_motion = data.get("clock_motion", "Animated")
+        s.clock_style = data.get("clock_style", "Picture")
+        s.clock_digits = data.get("clock_digits")
         s.assist_satellite = data.get("assist_satellite")
         s.assist_faces = dict(data.get("assist_faces") or {})
         s.assist_talk_speed = int(data.get("assist_talk_speed", 220))
@@ -216,6 +220,8 @@ class ShiningMask:
             "clock_speed": s.clock_speed,
             "clock_theme": s.clock_theme,
             "clock_motion": s.clock_motion,
+            "clock_style": s.clock_style,
+            "clock_digits": s.clock_digits,
             "assist_satellite": s.assist_satellite,
             "assist_faces": s.assist_faces,
             "assist_talk_speed": s.assist_talk_speed,
@@ -638,8 +644,8 @@ class ShiningMask:
             await self.clock.async_show()
 
     def set_clock_option(self, **values) -> None:
-        """clock_weather, clock_speed, clock_theme, clock_motion; used from the next minute on."""
-        for key in ("clock_weather", "clock_speed", "clock_theme", "clock_motion"):
+        """clock_weather/speed/theme/motion/style; used from the next minute on."""
+        for key in ("clock_weather", "clock_speed", "clock_theme", "clock_motion", "clock_style"):
             if key in values:
                 setattr(self.state, key, values[key])
         self._notify_listeners()
@@ -855,8 +861,16 @@ class ShiningMask:
         self.state.text = text
         self._notify_listeners()
 
-    async def async_upload_image(self, slot: int, payload: bytes) -> None:
-        """Upload a picture (path or built-in face name) into a DIY slot."""
+    async def async_upload_image(self, slot: int, payload: bytes, by_clock: bool = False) -> None:
+        """Upload a picture into a DIY slot.
+
+        Anything other than the clock writing into the shared slot pool (e.g. Matrix) means the
+        digit-flip clock's digits are gone; it re-uploads them when next shown.
+        """
+        from .const import SHARED_SLOTS
+
+        if slot in SHARED_SLOTS and not by_clock and self.state.clock_digits is not None:
+            self.state.clock_digits = None
         if len(payload) != p.IMAGE_BYTES:
             raise HomeAssistantError(f"Image payload must be {p.IMAGE_BYTES} bytes")
         from .const import MAX_DIY_SLOT
@@ -889,6 +903,7 @@ class ShiningMask:
         s.pack, s.pack_name = {}, None
         s.gesture_gallery_items, s.gesture_diy_items = [], []
         s.selected, s.clock_prev, s.diy = ("image", [1]), None, []
+        s.clock_digits = None
         self.slot_names.clear()
         self._blank_uploaded = False  # 'off' re-uploads its black frame when next needed
         if self.clock is not None:

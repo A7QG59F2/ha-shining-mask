@@ -220,7 +220,6 @@ install_effect:
         select:
           options: [matrix]
     start_slot:
-      default: 1
       selector:
         number: { min: 1, max: 30 }
     frames:

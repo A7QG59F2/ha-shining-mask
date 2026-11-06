@@ -29,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         [MaskAssistSatelliteSelect(m), MaskAssistUnavailableSelect(m)]
         + [MaskAssistFaceSelect(m, key, max_img, max_anim) for key in FACE_KEYS]
     )
-    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m), MaskClockWeatherSelect(m), MaskClockThemeSelect(m), MaskClockMotionSelect(m)])
+    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m), MaskClockWeatherSelect(m), MaskClockThemeSelect(m), MaskClockMotionSelect(m), MaskClockStyleSelect(m)])
 
 
 class MaskTextModeSelect(MaskEntity, SelectEntity):
@@ -274,3 +274,24 @@ class MaskAssistUnavailableSelect(MaskEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         self.mask.set_assist_option(unavailable_action=option)
+
+
+class MaskClockStyleSelect(MaskEntity, SelectEntity):
+    """Picture: full clock picture uploaded every minute (download arrow each minute).
+    Digit flip: digits uploaded once, then the mask flips through them - no uploads per minute.
+    """
+
+    _attr_name = "Clock style"
+    _attr_icon = "mdi:clock-edit-outline"
+    _attr_options = ["Picture", "Digit flip"]
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "clock_style")
+
+    @property
+    def current_option(self) -> str:
+        return self.mask.state.clock_style
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_clock_option(clock_style=option)
+        await self.mask.async_refresh_clock()

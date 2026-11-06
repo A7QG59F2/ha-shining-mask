@@ -8,6 +8,14 @@ it into DIY slots. Two pairs of slots are used in turn (double buffering): while
 on screen, the next minute goes into the other pair, then a single PLAY switches over exactly
 when the minute changes. The screen never shows a half-uploaded picture.
 
+Digit flip style
+----------------
+No uploads per minute: digits 0-9, a colon and an info screen (sky, temperature, date) are
+uploaded once into the shared slots, and each minute a new PLAY list flips through them:
+    info, H, blank, H, colon, M, blank, M, blank
+(the blank "off" frame separates digits so 11:11 reads as four 1s). The info screen is
+re-uploaded only when the weather/temperature/date change, or every 30 minutes for the sky.
+
 When it runs
 ------------
 Only while the clock is the chosen face and actually on screen: not while the mask is off,
@@ -33,6 +41,7 @@ from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.util import dt as dt_util
 
 from . import protocol as p
+from .const import SHARED_SLOTS
 
 if TYPE_CHECKING:
     from .device import ShiningMask
@@ -59,7 +68,9 @@ class MaskClock:
         self._ready_minute: datetime | None = None  # which minute that buffer shows
         self._on_screen: int | None = None  # buffer currently playing
         self._unsub_tick: CALLBACK_TYPE | None = None
+        self._unsub_minute: CALLBACK_TYPE | None = None
         self._unsub_flip: CALLBACK_TYPE | None = None
+        self._info_key: tuple | None = None  # what the digit clock's info screen currently shows
         self._busy = False  # an upload is running
         for buf in self.buffers:  # label the slots on the dashboard
             for slot in buf:
@@ -70,13 +81,14 @@ class MaskClock:
         """Begin the once-a-minute preparation tick."""
         if self._unsub_tick is None:
             self._unsub_tick = async_track_time_change(self.hass, self._tick, second=PREPARE_AT_SECOND)
+            self._unsub_minute = async_track_time_change(self.hass, self._minute, second=0)
 
     def stop(self) -> None:
         """Stop ticking (integration unloading)."""
-        for unsub in (self._unsub_tick, self._unsub_flip):
+        for unsub in (self._unsub_tick, self._unsub_minute, self._unsub_flip):
             if unsub:
                 unsub()
-        self._unsub_tick = self._unsub_flip = None
+        self._unsub_tick = self._unsub_minute = self._unsub_flip = None
 
     @property
     def showing(self) -> bool:
@@ -91,6 +103,9 @@ class MaskClock:
         if self._unsub_flip:  # a flip planned before we were interrupted would now be stale
             self._unsub_flip()
             self._unsub_flip = None
+        if self.digit_style:
+            await self._digit_show()
+            return
         now = dt_util.now()
         if self._ready is not None and self._ready_minute == now.replace(second=0, microsecond=0):
             await self._play(self._ready)  # already have this minute uploaded
@@ -102,8 +117,9 @@ class MaskClock:
             await self._play(self._ready)
 
     def forget_uploads(self) -> None:
-        """The DIY slots were wiped (reset): nothing uploaded is valid any more."""
+        """The DIY slots were wiped (reset) or the look changed: nothing uploaded is valid."""
         self._ready = self._ready_minute = self._on_screen = None
+        self._info_key = None
         for buf in self.buffers:
             for slot in buf:
                 self.mask.slot_names[slot] = "clock"
@@ -127,7 +143,7 @@ class MaskClock:
     @callback
     def _tick(self, now: datetime) -> None:
         """hh:mm:35 - draw the coming minute into the free buffer, then flip at hh:mm+1:00."""
-        if not self.showing or self._busy:
+        if self.digit_style or not self.showing or self._busy:
             return
         self.hass.async_create_task(self._prepare_and_flip(now))
 
@@ -161,7 +177,7 @@ class MaskClock:
                 if not self.showing and self._on_screen is not None:
                     return
                 payload = p.encode_image_pixels(list(img.getdata()), self.mask.pixel_order)
-                await self.mask.async_upload_image(slot, payload)
+                await self.mask.async_upload_image(slot, payload, by_clock=True)
             self._ready, self._ready_minute = buf, when.replace(second=0, microsecond=0)
             await self.hass.async_add_executor_job(self._save_preview, self.buffers[buf][0], frames[0])
             self.mask.preview_changed()
@@ -169,6 +185,83 @@ class MaskClock:
             _LOGGER.warning("Clock update failed: %s", err)
         finally:
             self._busy = False
+
+    # ------------------------------------------------------------- digit flip style
+    @property
+    def digit_style(self) -> bool:
+        return self.mask.state.clock_style == "Digit flip"
+
+    @staticmethod
+    def _digit_slot(ch: str) -> int:
+        """Shared slot holding a character: digits 0-9 -> first 10 slots, ':' -> 11th."""
+        return SHARED_SLOTS[10] if ch == ":" else SHARED_SLOTS[int(ch)]
+
+    @callback
+    def _minute(self, now: datetime) -> None:
+        """hh:mm:00 - digit style: send the new play list (and refresh the info screen if due)."""
+        if self.digit_style and self.showing and not self._busy:
+            self.hass.async_create_task(self._digit_show())
+
+    async def _digit_show(self) -> None:
+        """Make sure digits + info screen are on the mask, then play the current time."""
+        if self._busy:
+            return
+        self._busy = True
+        try:
+            s = self.mask.state
+            now = dt_util.now()
+            if s.clock_digits != s.clock_theme:  # first time, new theme, or Matrix used the slots
+                await self._upload_digits(s.clock_theme)
+                if s.clock_digits != s.clock_theme:
+                    return  # interrupted (assistant / music); try again next minute
+            sky = self._sky(now)
+            date = f"{DAYS[now.weekday()]} {now.day}"
+            key = (sky["cond"], None if sky["temp"] is None else round(sky["temp"]), date, s.clock_theme,
+                   (now.hour * 60 + now.minute) // 30)
+            if key != self._info_key and self.showing:
+                img = await self.hass.async_add_executor_job(self._render_info, now, sky, s.clock_theme)
+                await self._upload(SHARED_SLOTS[11], img, "clock info")
+                self._info_key = key
+            if not self.showing:
+                return
+            hh, mm = f"{now.hour:02d}", f"{now.minute:02d}"
+            blank = self.mask.blank_slot
+            await self.mask._ensure_blank()
+            order = [SHARED_SLOTS[11], self._digit_slot(hh[0]), blank, self._digit_slot(hh[1]),
+                     self._digit_slot(":"), self._digit_slot(mm[0]), blank, self._digit_slot(mm[1]), blank]
+            await self.mask.async_play_diy(order, s.clock_speed, temporary=True)
+        except Exception as err:  # noqa: BLE001 - a missed minute must never break the mask
+            _LOGGER.warning("Digit clock update failed: %s", err)
+        finally:
+            self._busy = False
+
+    async def _upload_digits(self, theme: str) -> None:
+        """Upload 0-9 and ':' in `theme` (11 uploads, once; stops early if the screen is taken)."""
+        from .clockface import render_digit
+
+        for ch in "0123456789:":
+            if not self.showing:
+                return
+            img = await self.hass.async_add_executor_job(render_digit, ch, theme)
+            await self._upload(self._digit_slot(ch), img, f"clock {ch}")
+        self.mask.state.clock_digits = theme
+        self.mask._notify_listeners()
+
+    async def _upload(self, slot: int, img, name: str) -> None:
+        """Upload one picture as the clock (keeps its digits valid) and update its preview."""
+        payload = p.encode_image_pixels(list(img.getdata()), self.mask.pixel_order)
+        await self.mask.async_upload_image(slot, payload, by_clock=True)
+        self.mask.slot_names[slot] = name
+        await self.hass.async_add_executor_job(self._save_preview, slot, img)
+        self.mask.preview_changed()
+
+    @staticmethod
+    def _render_info(when: datetime, sky: dict, theme: str):
+        """Info screen for the digit clock: sky + weather, big temperature, date (no time)."""
+        from .clockface import render
+
+        date = f"{DAYS[when.weekday()]} {when.day}"
+        return render(when.hour, when.minute, frame=0, date=date, theme=theme, show_time=False, **sky)
 
     # ------------------------------------------------------------- data
     def _sky(self, when: datetime) -> dict:

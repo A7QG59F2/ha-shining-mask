@@ -158,12 +158,12 @@ def draw_weather(d, cond, frame, rng):
 TEMP_COL = [(32, (80, 140, 255)), (55, (0, 200, 200)), (75, (90, 220, 60)), (90, (255, 160, 0)), (999, (255, 50, 30))]
 
 
-def _small_text(d, txt, y, col):
-    """Centred 3x5 text."""
-    widths = [len(SM[c][0]) + 1 for c in txt]
-    x = (W - sum(widths) + 1) // 2
+def _small_text(d, txt, y, col, scale=1):
+    """Centred 3x5 text (scale 2 = 6x10 letters)."""
+    widths = [(len(SM[c][0]) + 1) * scale for c in txt]
+    x = (W - sum(widths) + scale) // 2
     for c, w in zip(txt, widths):
-        _glyph(d, x, y, SM[c], col)
+        _glyph(d, x, y, SM[c], col, scale=scale)
         x += w
 
 
@@ -204,8 +204,26 @@ CONDITION_LOOK = {
 }
 
 
+COLON = ["....", ".##.", ".##.", "....", ".##.", ".##.", "...."]
+
+
+def render_digit(ch: str, theme: str = "Classic", index: int = 0):
+    """One big character for the digit-flip clock: 4x7 font at 5x (20x35), below the eyes.
+
+    ch: '0'-'9' or ':'. index: digit position 0-3 (themes like Neon/Rainbow colour by position;
+    for the flip clock every digit image is shared, so index 0 is used).
+    """
+    img = Image.new("RGB", (W, H), (0, 0, 0))
+    d = ImageDraw.Draw(img)
+    th = CLOCK_THEMES.get(theme, CLOCK_THEMES["Classic"])
+    rows = COLON if ch == ":" else DIG[ch]
+    col = th["colon"] if ch == ":" else th["digits"](index, (200, 200, 200))
+    _glyph(d, (W - 20) // 2, 20, rows, col, scale=5)
+    return img
+
+
 def render(hour, minute, sun_frac, elev, moon_frac, moon_phase, cond, temp, unit="F", frame=0, h24=True,
-           date="FRI 6", theme="Classic"):
+           date="FRI 6", theme="Classic", show_time=True):
     """One frame of the clock.
 
     sun_frac / moon_frac: 0..1 across the sky (rise -> set), or None while below the horizon.
@@ -247,21 +265,25 @@ def render(hour, minute, sun_frac, elev, moon_frac, moon_phase, cond, temp, unit
     img.paste(sky, (0, 0))  # weather never spills into the eye zone
 
     # time: 4x7 digits drawn at 2x (8x14) on rows 20-33, colon blinks on alternate frames
-    h = hour if h24 else (hour % 12 or 12)
+    if not show_time:  # digit-flip clock: this is the info screen (sky, temperature, date)
+        hour = None
+    h = 0 if hour is None else hour if h24 else (hour % 12 or 12)
     digits = f"{h:02d}{minute:02d}" if h24 else f"{h:>2}{minute:02d}"
     shift = 5 if digits[0] == " " else 0  # 3-digit times (12-hour) stay centred
     top = 20
     for i, (ch, x) in enumerate(zip(digits, (2, 12, 26, 36))):
-        if ch != " ":
+        if ch != " " and hour is not None:
             _glyph(d, x - shift, top, DIG[ch], dim(th["digits"](i, temp_col)), scale=2)
-    if frame % 2 == 0:
+    if frame % 2 == 0 and hour is not None:
         colon = dim(th["colon"])
         d.rectangle((22 - shift, top + 3, 23 - shift, top + 4), fill=colon)
         d.rectangle((22 - shift, top + 9, 23 - shift, top + 10), fill=colon)
 
-    # temperature (rows 38-42) and day + date (rows 46-50, the narrow bottom part)
+    # temperature (rows 38-42) and day + date (rows 46-50, the narrow bottom part).
+    # Info screen (no time): temperature big in the middle instead.
+    big = hour is None
     if temp is not None:
         col = temp_col if th["temp"] == "scale" else th["temp"]
-        _small_text(d, f"{round(temp)}°{unit}", 38, dim(col))
-    _small_text(d, date, 46, dim(th["date"]))
+        _small_text(d, f"{round(temp)}°{unit}", 22 if big else 38, dim(col), scale=2 if big else 1)
+    _small_text(d, date, 40 if big else 46, dim(th["date"]))
     return img

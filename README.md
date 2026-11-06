@@ -60,6 +60,11 @@ slots 31-34 at :35 and switches to it exactly on the minute. It only does this w
 is on screen. Assistant faces and music bars still take over and hand the screen back to the
 clock. **Clock speed** sets how fast the two frames alternate.
 
+- **Clock style**: *Picture* draws the full clock and uploads it every minute. *Digit flip*
+  uploads digits 0-9, a colon and an info screen (sky, big temperature, date) once. After that,
+  each minute it just tells the mask to flip through `info, H, H, :, M, M`, with black gaps so
+  11:11 reads as four 1s. That means no uploads and no download arrow. The info screen re-uploads
+  only when the weather, temperature or date change, or every 30 minutes for the sky.
 - **Clock colors** sets the colours of the time, temperature and date: Classic, Matrix, Amber, Ice,
   Sunset, Neon, Rainbow, or Temperature (digits coloured by how warm it is). Text dims at night.
 - **Clock motion**: *Animated* uploads 2 frames a minute (blinking colon, moving weather). *Still*
@@ -67,9 +72,11 @@ clock. **Clock speed** sets how fast the two frames alternate.
   can't be turned off, so *Still* halves how long the arrow shows each minute.
 
 ## DIY slot limit
-The mask only stores DIY slots **1-34**. Uploads to slot 35 or higher are refused. Default layout:
-default faces 1-7, black "off" frame 9, face pack from 10, Matrix 1-8 if you install it over the
-default faces, and the clock in 31-34.
+The mask only stores DIY slots **1-34**. Uploads to slot 35 or higher are refused. Layout:
+- **Shared pool 1-8 and 26-29**: the digit-flip clock (digits, colon, info screen) and effects
+  such as Matrix, which upload here when you run them. After an effect has used the pool, the
+  digit clock re-uploads its digits the next time it's shown.
+- **9**: the black "off" frame. **10-25**: the face pack. **31-34**: the picture clock.
 
 ## Reset
 `shining_mask.reset_mask` (with `confirm: true`) deletes every uploaded DIY image: face pack,
