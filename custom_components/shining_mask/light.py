@@ -88,10 +88,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     platform.async_register_entity_service(
         "set_gesture",
         {
-            vol.Required("enabled"): cv.boolean,
-            vol.Optional("slots", default=""): cv.string,
-            vol.Optional("mode", default=0): cv.byte,
-            vol.Optional("content", default=0): cv.byte,
+            vol.Optional("enabled"): cv.boolean,
+            vol.Optional("library"): vol.In(["all", "gallery", "diy"]),
+            vol.Optional("circulation"): vol.In(["order", "random"]),
+            vol.Optional("items"): cv.string,
         },
         "svc_set_gesture",
     )
@@ -262,11 +262,19 @@ class MaskLight(MaskEntity, LightEntity):
     async def svc_stop_rhythm(self) -> None:
         await self.mask.async_exit_rhythm()
 
-    async def svc_set_gesture(self, enabled: bool, slots: str = "", mode: int = 0, content: int = 0) -> None:
-        slot_list = _slots(slots) if slots.strip() else []
-        if len(slot_list) > 7:
-            raise ServiceValidationError("Gesture face-change supports at most 7 slots")
-        await self.mask.async_set_gesture(enabled, slot_list, mode, content)
+    async def svc_set_gesture(
+        self,
+        enabled: bool | None = None,
+        library: str | None = None,
+        circulation: str | None = None,
+        items: str | None = None,
+    ) -> None:
+        item_list = None
+        if items is not None:
+            item_list = _slots(items) if items.strip() else []
+            if len(item_list) > 7:
+                raise ServiceValidationError("Gesture face switch takes at most 7 pictures")
+        await self.mask.async_set_gesture(enabled, library, circulation, item_list)
 
     async def svc_restore_selected(self) -> None:
         await self.mask.async_restore_selected()

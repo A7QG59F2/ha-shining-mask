@@ -12,7 +12,8 @@ from .entity import MaskEntity
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    async_add_entities([MaskTextModeSelect(entry.runtime_data), MaskTextEffectSelect(entry.runtime_data)])
+    m = entry.runtime_data
+    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m)])
 
 
 class MaskTextModeSelect(MaskEntity, SelectEntity):
@@ -48,3 +49,39 @@ class MaskTextEffectSelect(MaskEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         await self.mask.async_set_text_effect(option, TEXT_EFFECTS[option])
+
+
+class MaskGestureLibrarySelect(MaskEntity, SelectEntity):
+    """App: gesture page > Library selection."""
+
+    _attr_name = "Gesture library"
+    _attr_icon = "mdi:image-multiple"
+    _attr_options = ["all", "gallery", "diy"]
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "gesture_library")
+
+    @property
+    def current_option(self) -> str:
+        return self.mask.state.gesture_library
+
+    async def async_select_option(self, option: str) -> None:
+        await self.mask.async_set_gesture(library=option)
+
+
+class MaskGestureCirculationSelect(MaskEntity, SelectEntity):
+    """App: gesture page > Circulation mode."""
+
+    _attr_name = "Gesture circulation"
+    _attr_icon = "mdi:shuffle-variant"
+    _attr_options = ["order", "random"]
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "gesture_circulation")
+
+    @property
+    def current_option(self) -> str:
+        return self.mask.state.gesture_circulation
+
+    async def async_select_option(self, option: str) -> None:
+        await self.mask.async_set_gesture(circulation=option)

@@ -227,24 +227,24 @@
       "description": "Leave rhythm mode and return to the previous face."
     },
     "set_gesture": {
-      "name": "Gesture face-change (experimental)",
-      "description": "Turn the mask's gesture face-switching on/off and choose up to 7 DIY slots. Mode/content meanings are unconfirmed.",
+      "name": "Gesture face switch",
+      "description": "The app's gesture page: switch on/off, library (all, gallery = built-in images, diy) and circulation (order/random). Fields left out keep their current value.",
       "fields": {
         "enabled": {
-          "name": "Enabled",
+          "name": "Gesture face switch",
           "description": "On or off."
         },
-        "slots": {
-          "name": "Slots",
-          "description": "Up to 7 DIY slots, comma-separated."
+        "library": {
+          "name": "Library selection",
+          "description": "all, gallery or diy."
         },
-        "mode": {
-          "name": "Mode",
-          "description": "Experimental option byte."
+        "circulation": {
+          "name": "Circulation mode",
+          "description": "order or random."
         },
-        "content": {
-          "name": "Content",
-          "description": "Experimental option byte."
+        "items": {
+          "name": "Pictures",
+          "description": "For gallery/diy: up to 7 image or DIY slot numbers, comma-separated."
         }
       }
     }

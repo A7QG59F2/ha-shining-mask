@@ -89,8 +89,10 @@ Any state can use a built-in image or animation instead (kind = image/animation)
 - `shining_mask.loop_animations`: cycle through all built-in animations (the app's loop mode).
 - `shining_mask.rhythm`: music-rhythm visualiser bars. Each frame is 12 levels 0–15; separate frames
   with `;`. `mode` picks the rhythm effect. `shining_mask.stop_rhythm` returns to the previous face.
-- `shining_mask.set_gesture` (**experimental**): turn gesture face-switching on/off with up to 7 DIY
-  slots. The `mode`/`content` option bytes aren't confirmed yet.
+- **Gesture face switch** (the app's gesture page): `switch.…_gesture_face_switch`,
+  `select.…_gesture_library` (all / gallery / diy) and `select.…_gesture_circulation` (order / random).
+  To pick specific pictures for gallery or DIY, use `shining_mask.set_gesture` with `items: "1,2,3"`
+  (up to 7).
 - Text background colour now uses the confirmed `BC` command.
 
 ## Options

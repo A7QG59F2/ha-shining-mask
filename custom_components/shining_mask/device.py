@@ -48,6 +48,10 @@ class MaskState:
     bg_color: list[int] = field(default_factory=lambda: [0, 0, 0])
     bg_color_on: bool = False
     text_effect: str = "solid"
+    gesture_on: bool = False
+    gesture_library: str = "all"
+    gesture_circulation: str = "order"
+    gesture_items: list[int] = field(default_factory=list)
 
 
 class ShiningMask:
@@ -108,6 +112,10 @@ class ShiningMask:
         s.bg_color = list(data.get("bg_color", s.bg_color))
         s.bg_color_on = bool(data.get("bg_color_on", False))
         s.text_effect = data.get("text_effect", "solid")
+        s.gesture_on = bool(data.get("gesture_on", False))
+        s.gesture_library = data.get("gesture_library", "all")
+        s.gesture_circulation = data.get("gesture_circulation", "order")
+        s.gesture_items = [int(v) for v in data.get("gesture_items", [])]
 
     def _data_to_save(self) -> dict:
         s = self.state
@@ -129,6 +137,10 @@ class ShiningMask:
             "bg_color": s.bg_color,
             "bg_color_on": s.bg_color_on,
             "text_effect": s.text_effect,
+            "gesture_on": s.gesture_on,
+            "gesture_library": s.gesture_library,
+            "gesture_circulation": s.gesture_circulation,
+            "gesture_items": s.gesture_items,
         }
 
     # ------------------------------------------------------------ listeners
@@ -502,8 +514,24 @@ class ShiningMask:
         await self.async_send(p.cmd_exit_rhythm())
         await self._restore_face()
 
-    async def async_set_gesture(self, enable: bool, slots: Sequence[int], mode: int, content: int) -> None:
-        await self.async_send(p.cmd_gesture(enable, slots, mode, content))
+    async def async_set_gesture(
+        self,
+        enable: bool | None = None,
+        library: str | None = None,
+        circulation: str | None = None,
+        items: Sequence[int] | None = None,
+    ) -> None:
+        """Update any gesture setting and send the full FACE packet."""
+        s = self.state
+        on = s.gesture_on if enable is None else enable
+        lib = library or s.gesture_library
+        circ = circulation or s.gesture_circulation
+        picked = list(s.gesture_items if items is None else items)[:7]
+        await self.async_send(
+            p.cmd_gesture(on, p.GESTURE_LIBRARIES[lib], p.GESTURE_CIRCULATION[circ], picked)
+        )
+        s.gesture_on, s.gesture_library, s.gesture_circulation, s.gesture_items = on, lib, circ, picked
+        self._notify_listeners()
 
     async def async_set_text_mode(self, mode_name: str, mode_value: int) -> None:
         await self.async_send(p.cmd_text_mode(mode_value))

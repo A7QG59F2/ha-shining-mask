@@ -123,21 +123,20 @@ set_gesture:
       domain: light
   fields:
     enabled:
-      required: true
       selector:
         boolean:
-    slots:
+    library:
+      selector:
+        select:
+          options: [all, gallery, diy]
+    circulation:
+      selector:
+        select:
+          options: [order, random]
+    items:
       example: "1,2,3"
       selector:
         text:
-    mode:
-      default: 0
-      selector:
-        number: { min: 0, max: 255, mode: box }
-    content:
-      default: 0
-      selector:
-        number: { min: 0, max: 255, mode: box }
 
 restore_selected:
   target:

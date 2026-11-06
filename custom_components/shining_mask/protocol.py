@@ -214,13 +214,19 @@ def cmd_rhythm_frame(mode: int, levels: Sequence[int]) -> bytes:
     return encrypt_block(bytes([0x0F, mode & 0xFF, *lv]).ljust(16, b"\x00"))
 
 
-def cmd_gesture(enable: bool, slots: Sequence[int] = (), mode: int = 0, content: int = 0) -> bytes:
-    """EXPERIMENTAL 'FACE' gesture face-change setting.
+GESTURE_LIBRARIES = {"all": 0, "gallery": 1, "diy": 2}
+GESTURE_CIRCULATION = {"order": 0, "random": 1}
 
-    Layout from the app: [8+n]'FACE'[enable][mode][count][content][slot1..slot7].
-    The meaning of mode/content is not confirmed - test values on the mask.
+
+def cmd_gesture(enable: bool, library: int = 0, circulation: int = 0, items: Sequence[int] = ()) -> bytes:
+    """'FACE' gesture face-switch setting (app: Settings > gesture page).
+
+    Layout from the app: [8+n] 'FACE' [enable] [circulation] [library] [count] [item1..item7]
+      library:     0 all, 1 gallery (built-in images), 2 DIY
+      circulation: 0 order, 1 random
+      items:       picked images (only sent for gallery/DIY), max 7 per packet
     """
-    slots = [s & 0xFF for s in list(slots)[:7]]
     if not enable:
         return build_command("FACE", [0, 0, 0, 0])
-    return build_command("FACE", [1, mode & 0xFF, len(slots), (content & 0xFF) if slots else 0, *slots])
+    picked = [i & 0xFF for i in list(items)[:7]] if library else []
+    return build_command("FACE", [1, circulation & 0xFF, library & 0xFF, len(picked), *picked])

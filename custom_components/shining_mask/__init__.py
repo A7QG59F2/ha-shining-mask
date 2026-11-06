@@ -20,7 +20,7 @@ from .const import (
 from .device import ShiningMask
 from .previews import async_register_static
 
-PLATFORMS = [Platform.IMAGE, Platform.LIGHT, Platform.NUMBER, Platform.SELECT, Platform.TEXT]
+PLATFORMS = [Platform.IMAGE, Platform.LIGHT, Platform.NUMBER, Platform.SELECT, Platform.SWITCH, Platform.TEXT]
 
 type MaskConfigEntry = ConfigEntry[ShiningMask]
 
