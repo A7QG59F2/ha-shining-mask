@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-FRAMES = 2  # pictures per minute (colon on / off)
+FRAMES = 2  # most pictures per minute (colon on / off); 'Still' motion uses just the first
 PREPARE_AT_SECOND = 35  # start drawing + uploading the next minute at hh:mm:35
 DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
@@ -108,10 +108,19 @@ class MaskClock:
             for slot in buf:
                 self.mask.slot_names[slot] = "clock"
 
+    @property
+    def frames(self) -> int:
+        """Pictures per minute: 2 animated (blinking colon, moving weather) or 1 still.
+
+        Every upload makes the mask flash its download arrow (firmware behaviour we can't turn
+        off), so 'Still' halves how long that shows each minute.
+        """
+        return 1 if self.mask.state.clock_motion == "Still" else FRAMES
+
     async def _play(self, buf: int) -> None:
         """Play one buffer's frames (temporary: the chosen face stays 'clock')."""
         speed = self.mask.state.clock_speed
-        await self.mask.async_play_diy(self.buffers[buf], speed, temporary=True)
+        await self.mask.async_play_diy(self.buffers[buf][: self.frames], speed, temporary=True)
         self._on_screen = buf
 
     # ------------------------------------------------------------- minute tick
@@ -144,7 +153,9 @@ class MaskClock:
         self._busy = True
         try:
             buf = 1 if self._on_screen == 0 else 0
-            frames = await self.hass.async_add_executor_job(self._render, when, self._sky(when))
+            frames = await self.hass.async_add_executor_job(
+                self._render, when, self._sky(when), self.mask.state.clock_theme, self.frames
+            )
             for slot, img in zip(self.buffers[buf], frames):
                 # an assistant face or music took over: stop uploading, it can wait
                 if not self.showing and self._on_screen is not None:
@@ -199,12 +210,12 @@ class MaskClock:
                 "cond": cond, "temp": float(temp) if temp is not None else None, "unit": unit}
 
     @staticmethod
-    def _render(when: datetime, sky: dict) -> list:
-        """Draw FRAMES pictures for minute `when` (runs in the executor)."""
+    def _render(when: datetime, sky: dict, theme: str, count: int) -> list:
+        """Draw `count` pictures for minute `when` in colour `theme` (runs in the executor)."""
         from .clockface import render
 
         date = f"{DAYS[when.weekday()]} {when.day}"
-        return [render(when.hour, when.minute, frame=f, h24=True, date=date, **sky) for f in range(FRAMES)]
+        return [render(when.hour, when.minute, frame=f, h24=True, date=date, theme=theme, **sky) for f in range(count)]
 
     def _save_preview(self, slot: int, img) -> None:
         """Keep the dashboard's 'Face now showing' picture current."""

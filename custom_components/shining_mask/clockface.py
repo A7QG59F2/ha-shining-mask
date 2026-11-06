@@ -2,10 +2,11 @@
 
 Canvas 46 x 58. Layout (rows):
   0-12  sky: sun or moon riding an arc (rise on the left -> set on the right), weather on top
- 13-26  eye zone: left dark for the eye holes
- 27-40  time, 8x14 digits, the colon blinks between the two frames
- 43-47  temperature, coloured from cold blue to hot red
- 50-54  day and date, dim
+ 13-19  eye zone: left dark for the eye holes
+ 20-33  time, 8x14 digits, the colon blinks between the two frames
+ 38-42  temperature
+ 46-50  day and date
+Colours come from a theme (CLOCK_THEMES).
 
 Every frame is a still picture; animation comes from uploading a couple of frames that the
 mask loops (see clock.py). `frame` picks which variant to draw (colon on/off, rays, rain...).
@@ -49,11 +50,16 @@ SM = {
 
 
 def _glyph(d, x, y, rows, color, scale=1):
-    """Draw a bitmap glyph (rows of '#'/'.') at x, y, each dot scale x scale pixels."""
+    """Draw a bitmap glyph (rows of '#'/'.') at x, y, each dot scale x scale pixels.
+
+    color: an (r, g, b) tuple, or a function (row_fraction 0..1) -> (r, g, b) for gradients.
+    """
+    n = max(1, len(rows) - 1)
     for r, line in enumerate(rows):
+        col = color(r / n) if callable(color) else color
         for c, ch in enumerate(line):
             if ch == "#":
-                d.rectangle((x + c * scale, y + r * scale, x + c * scale + scale - 1, y + r * scale + scale - 1), fill=color)
+                d.rectangle((x + c * scale, y + r * scale, x + c * scale + scale - 1, y + r * scale + scale - 1), fill=col)
 
 
 def _mix(a, b, t):
@@ -161,6 +167,34 @@ def _small_text(d, txt, y, col):
         x += w
 
 
+def _grad(top, bottom):
+    """Vertical gradient for a digit: top colour fading to bottom colour."""
+    return lambda t: _mix(top, bottom, t)
+
+
+def _hue(h):
+    """Fully saturated colour for hue 0..1."""
+    import colorsys
+
+    r, g, b = colorsys.hsv_to_rgb(h % 1.0, 1.0, 1.0)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+# Colour themes for the time and date.
+#   digits(i, temp_colour) -> colour or gradient for digit i (0-3)
+#   colon / date: colours. temp: "scale" = cold-blue..hot-red by temperature, or a fixed colour.
+CLOCK_THEMES = {
+    "Classic": dict(digits=lambda i, tc: (255, 255, 255), colon=(255, 255, 255), date=(90, 90, 110), temp="scale"),
+    "Matrix": dict(digits=lambda i, tc: _grad((180, 255, 180), (0, 150, 30)), colon=(0, 200, 60), date=(0, 90, 30), temp=(0, 220, 80)),
+    "Amber": dict(digits=lambda i, tc: (255, 150, 0), colon=(255, 110, 0), date=(120, 60, 0), temp=(255, 190, 60)),
+    "Ice": dict(digits=lambda i, tc: _grad((220, 250, 255), (0, 120, 255)), colon=(120, 200, 255), date=(40, 80, 130), temp="scale"),
+    "Sunset": dict(digits=lambda i, tc: _grad((255, 210, 0), (255, 0, 120)), colon=(255, 90, 60), date=(130, 40, 80), temp="scale"),
+    "Neon": dict(digits=lambda i, tc: (0, 255, 255) if i < 2 else (255, 0, 200), colon=(255, 255, 255), date=(120, 0, 120), temp=(0, 255, 255)),
+    "Rainbow": dict(digits=lambda i, tc: _hue(i / 4), colon=(255, 255, 255), date=(90, 90, 110), temp="scale"),
+    "Temperature": dict(digits=lambda i, tc: tc, colon=(200, 200, 200), date=(90, 90, 110), temp="scale"),
+}
+
+
 # Home Assistant weather conditions -> the few looks we draw
 CONDITION_LOOK = {
     "sunny": "sunny", "clear-night": "clear-night", "partlycloudy": "partlycloudy", "windy": "partlycloudy",
@@ -170,15 +204,29 @@ CONDITION_LOOK = {
 }
 
 
-def render(hour, minute, sun_frac, elev, moon_frac, moon_phase, cond, temp, unit="F", frame=0, h24=True, date="FRI 6"):
+def render(hour, minute, sun_frac, elev, moon_frac, moon_phase, cond, temp, unit="F", frame=0, h24=True,
+           date="FRI 6", theme="Classic"):
     """One frame of the clock.
 
     sun_frac / moon_frac: 0..1 across the sky (rise -> set), or None while below the horizon.
     elev: sun elevation in degrees (sky colour). moon_phase: 0 new, 0.5 full, 1 new again.
     cond: Home Assistant weather condition. temp: number in `unit` ('F' or 'C'), or None.
+    theme: one of CLOCK_THEMES (colours of the time, temperature and date).
     """
     cond = CONDITION_LOOK.get(cond, "cloudy" if cond else "")
-    """One frame. sun_frac/moon_frac: 0..1 across the sky, or None when below the horizon."""
+    th = CLOCK_THEMES.get(theme, CLOCK_THEMES["Classic"])
+    night = elev <= -6  # dim the text at night so it isn't glaring in the dark
+    temp_col = (200, 200, 200)
+    if temp is not None:
+        tf = temp if unit == "F" else temp * 9 / 5 + 32
+        temp_col = next(c for t, c in TEMP_COL if tf <= t)
+
+    def dim(c):
+        """Night dimming for a colour or a gradient."""
+        if callable(c):
+            return lambda t: dim(c(t))
+        return tuple(int(v * 0.6) for v in c) if night else c
+
     img = Image.new("RGB", (W, H), (0, 0, 0))
     d = ImageDraw.Draw(img)
     top, bot = sky_colors(elev)
@@ -198,24 +246,22 @@ def render(hour, minute, sun_frac, elev, moon_frac, moon_phase, cond, temp, unit
     draw_weather(sd, cond, frame, rng)
     img.paste(sky, (0, 0))  # weather never spills into the eye zone
 
-    # time: 4x7 digits drawn at 2x (8x14), colon blinks on alternate frames
+    # time: 4x7 digits drawn at 2x (8x14) on rows 20-33, colon blinks on alternate frames
     h = hour if h24 else (hour % 12 or 12)
     digits = f"{h:02d}{minute:02d}" if h24 else f"{h:>2}{minute:02d}"
-    tcol = (255, 255, 255) if elev > -6 else (150, 150, 190)  # dimmer at night
-    # positions for 4 digits; with 3 (e.g. 7:12) the whole block shifts right to stay centred
-    shift = 5 if digits[0] == " " else 0
-    for ch, x in zip(digits, (2, 12, 26, 36)):
+    shift = 5 if digits[0] == " " else 0  # 3-digit times (12-hour) stay centred
+    top = 20
+    for i, (ch, x) in enumerate(zip(digits, (2, 12, 26, 36))):
         if ch != " ":
-            _glyph(d, x - shift, 27, DIG[ch], tcol, scale=2)
+            _glyph(d, x - shift, top, DIG[ch], dim(th["digits"](i, temp_col)), scale=2)
     if frame % 2 == 0:
-        d.rectangle((22 - shift, 30, 23 - shift, 31), fill=tcol)
-        d.rectangle((22 - shift, 36, 23 - shift, 37), fill=tcol)
+        colon = dim(th["colon"])
+        d.rectangle((22 - shift, top + 3, 23 - shift, top + 4), fill=colon)
+        d.rectangle((22 - shift, top + 9, 23 - shift, top + 10), fill=colon)
 
-    # temperature, coloured cold blue -> hot red
+    # temperature (rows 38-42) and day + date (rows 46-50, the narrow bottom part)
     if temp is not None:
-        tf = temp if unit == "F" else temp * 9 / 5 + 32
-        col = next(c for t, c in TEMP_COL if tf <= t)
-        _small_text(d, f"{round(temp)}°{unit}", 43, col)
-    # day + date, dim, in the narrow bottom part
-    _small_text(d, date, 50, (90, 90, 110))
+        col = temp_col if th["temp"] == "scale" else th["temp"]
+        _small_text(d, f"{round(temp)}°{unit}", 38, dim(col))
+    _small_text(d, date, 46, dim(th["date"]))
     return img

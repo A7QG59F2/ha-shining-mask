@@ -501,7 +501,8 @@ class MaskLight(MaskEntity, LightEntity):
             "type": "vertical-stack",
             "cards": [
                 section("Mask", [("light", "light", "Mask"), ("image", "current_face", "Now showing")]),
-                section("Clock", [("switch", "clock", "Clock face"), ("select", "clock_weather", "Weather"),
+                section("Clock", [("switch", "clock", "Clock face"), ("select", "clock_theme", "Colors"),
+                                  ("select", "clock_weather", "Weather"), ("select", "clock_motion", "Motion"),
                                   ("number", "clock_speed", "Blink speed")]),
                 section("Face", [("number", "image", "Image"), ("number", "animation", "Animation"),
                                  ("number", "speed", "Speed")]),

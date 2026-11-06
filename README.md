@@ -27,7 +27,7 @@ Entity names start with their section, so the device page groups them:
 | Section | Entities |
 |---|---|
 | Mask | the mask light (on/off + brightness), Face now showing (preview) |
-| Clock | Clock (on = clock is the chosen face), Clock weather, Clock speed |
+| Clock | Clock (on = clock is the chosen face), Clock colors, Clock weather, Clock motion, Clock speed |
 | Face | Face image, Face animation, Face speed |
 | Text | Text, Text effect, Text mode, Text color, Text background color |
 | Visualizer | Visualizer (on/off), style, sensitivity, contrast, bass, mid, treble, delay |
@@ -58,6 +58,12 @@ The mask can't draw on its own, so the integration uploads the next minute (2 fr
 slots 31-34 at :35 and switches to it exactly on the minute. It only does this while the clock
 is on screen. Assistant faces and music bars still take over and hand the screen back to the
 clock. **Clock speed** sets how fast the two frames alternate.
+
+- **Clock colors** sets the colours of the time, temperature and date: Classic, Matrix, Amber, Ice,
+  Sunset, Neon, Rainbow, or Temperature (digits coloured by how warm it is). Text dims at night.
+- **Clock motion**: *Animated* uploads 2 frames a minute (blinking colon, moving weather). *Still*
+  uploads 1. The mask's firmware shows a download arrow while it receives an image, and that
+  can't be turned off, so *Still* halves how long the arrow shows each minute.
 
 ## DIY slot limit
 The mask only stores DIY slots **1-34**. Uploads to slot 35 or higher are refused. Default layout:

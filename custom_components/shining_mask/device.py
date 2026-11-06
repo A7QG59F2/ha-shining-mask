@@ -68,6 +68,8 @@ class MaskState:
     clock_weather: str | None = None  # weather entity for the sky and temperature
     clock_speed: int = 230  # playback speed of the clock's two frames (colon blink)
     clock_prev: tuple[str, list[int]] | None = None  # chosen face before the clock was switched on
+    clock_theme: str = "Classic"  # colours of time/temperature/date (clockface.CLOCK_THEMES)
+    clock_motion: str = "Animated"  # "Animated" = 2 frames a minute, "Still" = 1 (less upload arrow)
 
 
 class ShiningMask:
@@ -155,6 +157,8 @@ class ShiningMask:
         s.bars_contrast = float(data.get("bars_contrast", 1.6))
         s.clock_weather = data.get("clock_weather")
         s.clock_speed = int(data.get("clock_speed", 230))
+        s.clock_theme = data.get("clock_theme", "Classic")
+        s.clock_motion = data.get("clock_motion", "Animated")
         if prev := data.get("clock_prev"):
             s.clock_prev = (prev[0], [int(v) for v in prev[1]])
 
@@ -194,6 +198,8 @@ class ShiningMask:
             "bars_treble": s.bars_treble,
             "clock_weather": s.clock_weather,
             "clock_speed": s.clock_speed,
+            "clock_theme": s.clock_theme,
+            "clock_motion": s.clock_motion,
             "clock_prev": [s.clock_prev[0], s.clock_prev[1]] if s.clock_prev else None,
         }
 
@@ -587,9 +593,15 @@ class ShiningMask:
         self._notify_listeners()
         await self.async_restore_selected()
 
+    async def async_refresh_clock(self) -> None:
+        """Redraw the clock now (after a colour/motion change) if it is on screen."""
+        if self.clock is not None and self.clock.showing:
+            self.clock.forget_uploads()
+            await self.clock.async_show()
+
     def set_clock_option(self, **values) -> None:
-        """clock_weather (entity id) and/or clock_speed; used from the next minute on."""
-        for key in ("clock_weather", "clock_speed"):
+        """clock_weather, clock_speed, clock_theme, clock_motion; used from the next minute on."""
+        for key in ("clock_weather", "clock_speed", "clock_theme", "clock_motion"):
             if key in values:
                 setattr(self.state, key, values[key])
         self._notify_listeners()

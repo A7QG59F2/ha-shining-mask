@@ -13,7 +13,7 @@ from .entity import MaskEntity
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     m = entry.runtime_data
-    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m), MaskClockWeatherSelect(m)])
+    async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m), MaskClockWeatherSelect(m), MaskClockThemeSelect(m), MaskClockMotionSelect(m)])
 
 
 class MaskTextModeSelect(MaskEntity, SelectEntity):
@@ -136,3 +136,47 @@ class MaskClockWeatherSelect(MaskEntity, SelectEntity):
         await super().async_added_to_hass()
         if self.mask.state.clock_weather is None and self.current_option != "none":
             self.mask.set_clock_option(clock_weather=self.current_option)  # remember the default
+
+
+class MaskClockThemeSelect(MaskEntity, SelectEntity):
+    """Colour theme of the clock's time, temperature and date (sky colours stay natural)."""
+
+    _attr_name = "Clock colors"
+    _attr_icon = "mdi:palette"
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "clock_theme")
+        from .clockface import CLOCK_THEMES
+
+        self._attr_options = list(CLOCK_THEMES)
+
+    @property
+    def current_option(self) -> str:
+        return self.mask.state.clock_theme
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_clock_option(clock_theme=option)
+        await self.mask.async_refresh_clock()
+
+
+class MaskClockMotionSelect(MaskEntity, SelectEntity):
+    """Animated (2 frames a minute: blinking colon, moving weather) or Still (1 frame).
+
+    Each frame is an upload, and the mask shows a download arrow while it receives one, so
+    Still halves how long the arrow appears each minute.
+    """
+
+    _attr_name = "Clock motion"
+    _attr_icon = "mdi:motion-play-outline"
+    _attr_options = ["Animated", "Still"]
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "clock_motion")
+
+    @property
+    def current_option(self) -> str:
+        return self.mask.state.clock_motion
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_clock_option(clock_motion=option)
+        await self.mask.async_refresh_clock()
