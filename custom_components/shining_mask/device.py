@@ -87,6 +87,7 @@ class ShiningMask:
         self._response_override: bool | None = None
         self._cmd_char = p.CMD_UUID
         self._up_char = p.UPLOAD_UUID
+        self._rhythm_char = p.RHYTHM_UUID
         self._store: Store = Store(hass, 1, f"shining_mask.{address.replace(':', '').lower()}")
 
     # ------------------------------------------------------------ persistence
@@ -228,6 +229,7 @@ class ShiningMask:
     def _resolve(self, client):
         """Find command / notify / upload characteristics; record the GATT table for diagnostics."""
         summary, cmd, notify, up = [], None, None, None
+        self._rhythm_char = p.RHYTHM_UUID
         writable = []
         for service in client.services:
             for ch in service.characteristics:
@@ -240,6 +242,8 @@ class ShiningMask:
                     notify = ch
                 elif u == p.UPLOAD_UUID:
                     up = ch
+                elif u == p.RHYTHM_UUID:
+                    self._rhythm_char = ch
                 if service.uuid.lower() == p.SERVICE_UUID and ({"write", "write-without-response"} & set(ch.properties)):
                     writable.append(ch)
         if cmd is None and writable:
@@ -506,7 +510,10 @@ class ShiningMask:
         """Send one or more visualiser frames (12 levels 0-15 each)."""
         await self._wake()
         for i, levels in enumerate(frames):
-            await self.async_send(p.cmd_rhythm_frame(mode, levels))
+            async with self._lock:
+                client = await self._ensure_connected()
+                await client.write_gatt_char(self._rhythm_char, p.cmd_rhythm_frame(mode, levels), response=False)
+                self._schedule_idle_disconnect()
             if i < len(frames) - 1:
                 await asyncio.sleep(interval)
 

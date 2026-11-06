@@ -23,6 +23,7 @@ SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb"
 CMD_UUID = "d44bc439-abfd-45a2-b575-925416129600"
 NOTIFY_UUID = "d44bc439-abfd-45a2-b575-925416129601"
 UPLOAD_UUID = "d44bc439-abfd-45a2-b575-92541612960a"
+RHYTHM_UUID = "d44bc439-abfd-45a2-b575-92541612960b"  # music/mic visualiser frames (app write channel 3)
 
 # DIY image frame: 8004 bytes = 2668 RGB pixels = 46 x 58.
 IMAGE_WIDTH = 46
@@ -208,6 +209,7 @@ def cmd_rhythm_frame(mode: int, levels: Sequence[int]) -> bytes:
     """One frame of the music/mic visualiser: no ASCII tag, [0x0F][mode][12 bar levels].
 
     levels: 12 values 0-15 (bar heights). Send repeatedly (e.g. 10-20 per second).
+    Write to RHYTHM_UUID (not the command characteristic).
     """
     lv = [max(0, min(15, int(v))) for v in list(levels)[:12]]
     lv += [0] * (12 - len(lv))
