@@ -201,6 +201,13 @@ upload_image:
       selector:
         select:
           options: [idle, listening, thinking, talk_closed, talk_open, error, sleep, test_pattern, blank]
+    data:
+      selector:
+        text:
+          multiline: true
+    name:
+      selector:
+        text:
 
 install_default_faces:
   target:

@@ -131,6 +131,8 @@
       "name": "Upload DIY image",
       "description": "Upload an image file or a built-in face into a DIY slot.",
       "fields": {
+        "data": { "name": "Image data (base64)", "description": "The image file itself, base64-encoded, instead of a path." },
+        "name": { "name": "Name", "description": "Label for the slot on the dashboard." },
         "slot": {
           "name": "Slot",
           "description": "DIY slot number."

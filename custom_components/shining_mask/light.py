@@ -73,6 +73,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             vol.Required("slot"): SLOT,
             vol.Exclusive("path", "source"): cv.string,
             vol.Exclusive("builtin", "source"): cv.string,
+            # image file contents as base64 (PNG/BMP/...), for tools that can't write to /config
+            vol.Exclusive("data", "source"): cv.string,
+            vol.Optional("name"): cv.string,
         },
         "svc_upload_image",
     )
@@ -364,10 +367,41 @@ class MaskLight(MaskEntity, LightEntity):
         await self.hass.async_add_executor_job(save_diy_preview, self.hass, slot, canvas)
         self.mask.preview_changed()
 
-    async def svc_upload_image(self, slot: int, path: str | None = None, builtin: str | None = None) -> None:
-        """Action: upload a picture or built-in face into a DIY slot."""
+    async def svc_upload_image(
+        self,
+        slot: int,
+        path: str | None = None,
+        builtin: str | None = None,
+        data: str | None = None,
+        name: str | None = None,
+    ) -> None:
+        """Action: upload a picture (file in /config, base64 data, or built-in face) into a DIY slot."""
         from .graphics import BUILTIN_FACES, fit_image
 
+        if data:
+            import base64
+            import io
+
+            try:
+                raw = base64.b64decode(data, validate=False)
+            except ValueError as err:
+                raise ServiceValidationError(f"data is not valid base64: {err}") from err
+            if len(raw) > 2_000_000:
+                raise ServiceValidationError("Image data too large (max 2 MB)")
+
+            def _load_data():
+                from PIL import Image
+
+                with Image.open(io.BytesIO(raw)) as img:
+                    return fit_image(img)
+
+            try:
+                await self._upload_canvas(slot, _load_data)
+            except OSError as err:
+                raise HomeAssistantError(f"Could not read image data: {err}") from err
+            self.mask.slot_names[slot] = name or "uploaded"
+            self.mask.preview_changed()
+            return
         if builtin:
             if builtin not in BUILTIN_FACES:
                 raise ServiceValidationError(f"Unknown builtin face; choose from {', '.join(BUILTIN_FACES)}")
