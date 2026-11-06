@@ -173,7 +173,7 @@ BUILTIN_FACES = {
     "blank": face_blank,
 }
 
-# Slot layout used by install_default_faces and the blueprint defaults.
+# Slot layout used by install_default_faces.
 DEFAULT_SLOTS = {
     1: "idle",
     2: "listening",

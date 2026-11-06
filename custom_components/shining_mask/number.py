@@ -25,6 +25,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             MaskBarsTuneNumber(mask, "bars_mid", "Visualizer mid", "mdi:speaker", 0, 200, 5, "%"),
             MaskBarsTuneNumber(mask, "bars_treble", "Visualizer treble", "mdi:speaker", 0, 200, 5, "%"),
             MaskClockSpeedNumber(mask),
+            MaskAssistNumber(mask, "talk_speed", "Assistant talking speed", "mdi:account-voice", 0, 255, 1, None),
+            MaskAssistNumber(mask, "idle_return", "Assistant idle return", "mdi:timer-sand", 0, 3600, 5, "s"),
+            MaskAssistNumber(mask, "unavailable_after", "Assistant unavailable after", "mdi:timer-alert-outline", 0, 7200, 5, "s"),
         ]
     )
 
@@ -157,3 +160,31 @@ class MaskClockSpeedNumber(MaskEntity, NumberEntity):
         self.mask.set_clock_option(clock_speed=int(value))
         if self.mask.clock and self.mask.clock.showing:
             await self.mask.async_set_speed(int(value))  # apply now, not just next minute
+
+
+class MaskAssistNumber(MaskEntity, NumberEntity):
+    """Voice-assistant face timing/speed setting.
+
+    talk_speed: DIY speed while talking. idle_return: seconds before an idle face goes back
+    to the chosen face (0 = stay). unavailable_after: seconds of error face before the
+    'Assistant unavailable action'.
+    """
+
+    _attr_mode = NumberMode.BOX
+
+    def __init__(self, mask, key, name, icon, lo, hi, step, unit) -> None:
+        super().__init__(mask, f"assist_{key}")
+        self._key = key
+        self._attr_name = name
+        self._attr_icon = icon
+        self._attr_native_min_value = lo
+        self._attr_native_max_value = hi
+        self._attr_native_step = step
+        self._attr_native_unit_of_measurement = unit
+
+    @property
+    def native_value(self):
+        return getattr(self.mask.state, f"assist_{self._key}")
+
+    async def async_set_native_value(self, value: float) -> None:
+        self.mask.set_assist_option(**{self._key: int(value)})

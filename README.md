@@ -27,6 +27,7 @@ Entity names start with their section, so the device page groups them:
 | Section | Entities |
 |---|---|
 | Mask | the mask light (on/off + brightness), Face now showing (preview) |
+| Assistant | satellite, a face for each state (listening, thinking, talking, idle, error), talking speed, idle return, unavailable timing |
 | Clock | Clock (on = clock is the chosen face), Clock colors, Clock weather, Clock motion, Clock speed |
 | Face | Face image, Face animation, Face speed |
 | Text | Text, Text effect, Text mode, Text color, Text background color |
@@ -94,20 +95,28 @@ normal DIY sequence: play it again with `play_diy` or from the dashboard.
    *Pixel order* to `row` in the integration options and try again.
 2. Run **`shining_mask.install_default_faces`**. This writes slots 1–7:
    1 idle · 2 listening · 3 thinking · 4 talk (closed) · 5 talk (open) · 6 error · 7 sleep.
-3. Import the blueprint `blueprints/automation/shining_mask/voice_face.yaml`
-   (copy it to `/config/blueprints/automation/shining_mask/`), then create an automation from it.
-   Pick the Show's `assist_satellite` entity and the mask.
-   - idle (finished speaking) → back to the face you picked yourself (or a fixed face, optionally
-     returning to your face after N seconds); listening → slot 2, thinking → slot 3
-   - **talking → slots `4,5` cycling** (a flapping mouth), with adjustable speed
-   - unavailable → slot 6, then after **N seconds** (default 180) either go black (`off`) or
-     go back to the face you last picked yourself (`restore`, the default)
+3. Pick your voice satellite in **Assistant satellite** (on the mask's device page or the settings
+   card). That's all you need; no automation or blueprint. Each assistant state gets its own setting:
 
-   Voice faces are shown as *temporary*, so they never replace your chosen face. Your choice
-   (dashboard tap, Image/Animation number, or an action) is in the light's `selected_face`
+   | Setting | Default | Notes |
+   |---|---|---|
+   | Assistant listening face | Face pack | |
+   | Assistant thinking face | Face pack | |
+   | Assistant talking face | Face pack | played at **Assistant talking speed** |
+   | Assistant idle face | Chosen face | the face you picked yourself |
+   | Assistant idle return | 0 s | if the idle face isn't *Chosen face*: go back to it after N s |
+   | Assistant error face | Face pack | shown while the satellite is unavailable |
+   | Assistant unavailable after / action | 180 s / Restore chosen face | or *Turn off* / *Keep error face* |
+
+   Every face setting can be *Face pack* (that role from your installed pack), *Chosen face*,
+   *None*, a built-in *Image N* or *Animation N*, or a *DIY N* slot.
+
+   Assistant faces are *temporary*, so they never replace your chosen face. Your choice
+   (dashboard tap, Image/Animation number, Clock, or an action) is in the light's `selected_face`
    attribute, and `shining_mask.restore_selected` brings it back. It is remembered across restarts.
 
-Any state can use a built-in image or animation instead (kind = image/animation).
+   **Upgrading from the blueprint:** once you've picked the satellite here, delete (or disable)
+   your old "Shining Mask - voice assistant face" automation, or both will drive the mask.
 
 ## 6. Your own assistant face (face packs)
 1. Put a folder of frames in `/config/assistant_face/<name>/` or `/config/shining_mask/assistant_face/<name>/`.
@@ -117,8 +126,7 @@ Any state can use a built-in image or animation instead (kind = image/animation)
 2. Run `shining_mask.install_face_pack` with `folder: "1"` (tick *return response* to see which
    frame went to which slot). Frames go into DIY slots from 10 up (`start_slot`). `fit: auto` keeps
    pixel art 1:1, centred, for frames drawn for the mask.
-3. In the voice-face automation, set the Listening / Thinking / Talking / Unavailable kinds (and Idle
-   if you like) to `pack`.
+3. Set the assistant face settings to *Face pack* (the default).
 
 ## 7. Face previews and a tap-to-show grid
 - **`image.…_current_face`** shows what the mask is displaying: your DIY faces, plus built-in
@@ -157,14 +165,13 @@ playback, to Sendspin "visualizer" clients. The mask can be one of those clients
   what you hear (e.g. a speaker that adds its own delay).
 - **Who owns the screen** (highest first):
   1. **Assistant face** - listening / thinking / talking. Any temporary face (`show_face` with
-     `temporary: true`) holds the bars off until the chosen face comes back, so this works even with
-     an older copy of the blueprint. Pack roles idle, sleep and error don't hold. Override with
+     `temporary: true`) holds the bars off until the chosen face comes back. Pack roles idle, sleep and error don't hold. Override with
      `hold_music`. The light's `assistant_face_holding_music` attribute shows whether the hold is on.
   2. **Music bars** - whenever music is playing to the mask.
   3. **Your chosen face** - the one you picked yourself (dashboard, Image/Animation numbers).
 - When the assistant finishes and music is still playing, the bars come straight back (the idle face
   and the idle timeout are skipped). With no music, you get the idle face, then your chosen face after
-  the blueprint's idle timeout.
+  *Assistant idle return*.
 - When the music stops, the mask goes straight to your chosen face.
 - Picking a face while music plays just remembers it; it shows when the music stops.
 - Bars are not sent while the mask is switched off.

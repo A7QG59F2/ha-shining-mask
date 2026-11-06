@@ -38,7 +38,7 @@ class MaskState:
     diy_count: int | None = None
     gatt: list[str] = field(default_factory=list)
     last_error: str | None = None
-    # the face last chosen by a person (dashboard / numbers / actions), not by the voice-face automation
+    # the face last chosen by a person (dashboard / numbers / actions), not by the assistant
     selected: tuple[str, list[int]] | None = None
     # installed assistant face pack: role -> DIY slots
     pack: dict[str, list[int]] = field(default_factory=dict)
@@ -70,6 +70,13 @@ class MaskState:
     clock_prev: tuple[str, list[int]] | None = None  # chosen face before the clock was switched on
     clock_theme: str = "Classic"  # colours of time/temperature/date (clockface.CLOCK_THEMES)
     clock_motion: str = "Animated"  # "Animated" = 2 frames a minute, "Still" = 1 (less upload arrow)
+    # voice-assistant face (see assist.py)
+    assist_satellite: str | None = None  # assist_satellite entity to follow; None = off
+    assist_faces: dict[str, str] = field(default_factory=dict)  # listening/thinking/talking/idle/error -> choice
+    assist_talk_speed: int = 220  # DIY speed while talking
+    assist_idle_return: int = 0  # seconds before idle face -> chosen face (0 = stay)
+    assist_unavailable_after: int = 180  # seconds showing the error face before the action below
+    assist_unavailable_action: str = "Restore chosen face"
 
 
 class ShiningMask:
@@ -98,6 +105,7 @@ class ShiningMask:
         self.slot_names: dict[int, str] = {}
         self.visualizer = None  # MaskVisualizer when the music visualizer is on
         self.clock = None  # MaskClock, set up by __init__.py
+        self.assistant = None  # MaskAssistant (voice-assistant faces), set up by __init__.py
         self.music_hold = False  # True while the voice assistant face is showing
         self._bars_live = False  # the mask is currently in rhythm (music bars) mode
         self._restoring = False
@@ -159,6 +167,12 @@ class ShiningMask:
         s.clock_speed = int(data.get("clock_speed", 230))
         s.clock_theme = data.get("clock_theme", "Classic")
         s.clock_motion = data.get("clock_motion", "Animated")
+        s.assist_satellite = data.get("assist_satellite")
+        s.assist_faces = dict(data.get("assist_faces") or {})
+        s.assist_talk_speed = int(data.get("assist_talk_speed", 220))
+        s.assist_idle_return = int(data.get("assist_idle_return", 0))
+        s.assist_unavailable_after = int(data.get("assist_unavailable_after", 180))
+        s.assist_unavailable_action = data.get("assist_unavailable_action", "Restore chosen face")
         if prev := data.get("clock_prev"):
             s.clock_prev = (prev[0], [int(v) for v in prev[1]])
 
@@ -200,6 +214,12 @@ class ShiningMask:
             "clock_speed": s.clock_speed,
             "clock_theme": s.clock_theme,
             "clock_motion": s.clock_motion,
+            "assist_satellite": s.assist_satellite,
+            "assist_faces": s.assist_faces,
+            "assist_talk_speed": s.assist_talk_speed,
+            "assist_idle_return": s.assist_idle_return,
+            "assist_unavailable_after": s.assist_unavailable_after,
+            "assist_unavailable_action": s.assist_unavailable_action,
             "clock_prev": [s.clock_prev[0], s.clock_prev[1]] if s.clock_prev else None,
         }
 
@@ -592,6 +612,22 @@ class ShiningMask:
             return
         self._notify_listeners()
         await self.async_restore_selected()
+
+    def set_assist_option(self, **values) -> None:
+        """Change voice-assistant face settings. A new satellite is followed immediately.
+
+        Keys: satellite, talk_speed, idle_return, unavailable_after, unavailable_action, and
+        face_<key> for listening/thinking/talking/idle/error.
+        """
+        s = self.state
+        for key, value in values.items():
+            if key.startswith("face_"):
+                s.assist_faces[key[5:]] = value
+            else:
+                setattr(s, f"assist_{key}", value)
+        if "satellite" in values and self.assistant is not None:
+            self.assistant.start()
+        self._notify_listeners()
 
     async def async_refresh_clock(self) -> None:
         """Redraw the clock now (after a colour/motion change) if it is on screen."""

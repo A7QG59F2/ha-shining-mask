@@ -65,6 +65,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
     mask.clock = MaskClock(hass, mask, CLOCK_FIRST_SLOT)
     mask.clock.start()
     entry.async_on_unload(mask.clock.stop)
+    # voice-assistant faces: follows the satellite chosen on the mask's "Assistant satellite"
+    from .assist import MaskAssistant
+
+    mask.assistant = MaskAssistant(hass, mask)
+    mask.assistant.start()
+    entry.async_on_unload(mask.assistant.stop)
     entry.runtime_data = mask
     await async_register_static(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

@@ -207,7 +207,7 @@ class MaskLight(MaskEntity, LightEntity):
         caller says otherwise (hold_music), a temporary face holds the bars off until the chosen
         face comes back (restore_selected) or set_music_hold(false). Pack roles 'idle', 'sleep'
         and 'error' don't hold: the assistant isn't busy then. This makes the priority work even
-        with an older copy of the voice-face blueprint that never calls set_music_hold.
+        with scripts of your own that never call set_music_hold.
         """
         if temporary:
             role = value.strip().lower() if kind == "pack" else None
@@ -327,7 +327,7 @@ class MaskLight(MaskEntity, LightEntity):
         await self.mask.async_set_gesture(enabled, library, circulation, item_list)
 
     async def svc_set_music_hold(self, hold: bool) -> None:
-        """Action: hold the music bars off while the assistant face is up (used by the blueprint)."""
+        """Action: hold the music bars off while the assistant face is up (the built-in assistant does this itself)."""
         await self.mask.async_set_music_hold(hold)
 
     async def svc_restore_selected(self) -> None:
@@ -501,6 +501,18 @@ class MaskLight(MaskEntity, LightEntity):
             "type": "vertical-stack",
             "cards": [
                 section("Mask", [("light", "light", "Mask"), ("image", "current_face", "Now showing")]),
+                section("Assistant face", [
+                    ("select", "assist_satellite", "Satellite"),
+                    ("select", "assist_face_listening", "Listening"),
+                    ("select", "assist_face_thinking", "Thinking"),
+                    ("select", "assist_face_talking", "Talking"),
+                    ("number", "assist_talk_speed", "Talking speed"),
+                    ("select", "assist_face_idle", "Idle"),
+                    ("number", "assist_idle_return", "Back to chosen face after"),
+                    ("select", "assist_face_error", "Unavailable"),
+                    ("number", "assist_unavailable_after", "Unavailable for"),
+                    ("select", "assist_unavailable_action", "Then"),
+                ]),
                 section("Clock", [("switch", "clock", "Clock face"), ("select", "clock_theme", "Colors"),
                                   ("select", "clock_weather", "Weather"), ("select", "clock_motion", "Motion"),
                                   ("number", "clock_speed", "Blink speed")]),

@@ -7,12 +7,28 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import MaskConfigEntry
-from .const import BAR_STYLES, TEXT_EFFECTS, TEXT_MODES
+from .const import (
+    BAR_STYLES,
+    CONF_MAX_ANIMATION,
+    CONF_MAX_IMAGE,
+    DEFAULT_MAX_ANIMATION,
+    DEFAULT_MAX_IMAGE,
+    TEXT_EFFECTS,
+    TEXT_MODES,
+)
 from .entity import MaskEntity
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     m = entry.runtime_data
+    from .assist import FACE_KEYS
+
+    max_img = entry.options.get(CONF_MAX_IMAGE, DEFAULT_MAX_IMAGE)
+    max_anim = entry.options.get(CONF_MAX_ANIMATION, DEFAULT_MAX_ANIMATION)
+    async_add_entities(
+        [MaskAssistSatelliteSelect(m), MaskAssistUnavailableSelect(m)]
+        + [MaskAssistFaceSelect(m, key, max_img, max_anim) for key in FACE_KEYS]
+    )
     async_add_entities([MaskTextModeSelect(m), MaskTextEffectSelect(m), MaskGestureLibrarySelect(m), MaskGestureCirculationSelect(m), MaskBarsStyleSelect(m), MaskClockWeatherSelect(m), MaskClockThemeSelect(m), MaskClockMotionSelect(m)])
 
 
@@ -180,3 +196,81 @@ class MaskClockMotionSelect(MaskEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         self.mask.set_clock_option(clock_motion=option)
         await self.mask.async_refresh_clock()
+
+
+class MaskAssistSatelliteSelect(MaskEntity, SelectEntity):
+    """Which voice satellite the mask follows. 'none' switches the assistant faces off."""
+
+    _attr_name = "Assistant satellite"
+    _attr_icon = "mdi:account-voice"
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "assist_satellite")
+
+    @property
+    def options(self) -> list[str]:
+        found = sorted(self.hass.states.async_entity_ids("assist_satellite")) if self.hass else []
+        return ["none", *found]
+
+    @property
+    def current_option(self) -> str:
+        return self.mask.state.assist_satellite or "none"
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_assist_option(satellite=None if option == "none" else option)
+
+
+class MaskAssistFaceSelect(MaskEntity, SelectEntity):
+    """Face shown for one assistant state (listening, thinking, talking, idle, error)."""
+
+    _attr_icon = "mdi:emoticon-outline"
+
+    LABELS = {"listening": "Listening", "thinking": "Thinking", "talking": "Talking", "idle": "Idle", "error": "Error"}
+
+    def __init__(self, mask, key: str, max_image: int, max_animation: int) -> None:
+        super().__init__(mask, f"assist_face_{key}")
+        self._key = key
+        self._max = (max_image, max_animation)
+        self._attr_name = f"Assistant {self.LABELS[key].lower()} face"
+
+    @property
+    def options(self) -> list[str]:
+        from .assist import face_options
+
+        return face_options(self.mask, *self._max)
+
+    @property
+    def current_option(self) -> str | None:
+        from .assist import DEFAULT_FACES
+
+        choice = self.mask.state.assist_faces.get(self._key, DEFAULT_FACES[self._key])
+        if choice in self.options:
+            return choice
+        # DIY labels include the slot's name, which can change; match on "DIY <n>"
+        if choice.startswith("DIY "):
+            num = choice.split()[1]
+            return next((o for o in self.options if o.split()[:2] == ["DIY", num]), None)
+        return None
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_assist_option(**{f"face_{self._key}": option})
+
+
+class MaskAssistUnavailableSelect(MaskEntity, SelectEntity):
+    """What to do once the satellite has been unavailable for 'Assistant unavailable after'."""
+
+    _attr_name = "Assistant unavailable action"
+    _attr_icon = "mdi:lan-disconnect"
+
+    def __init__(self, mask) -> None:
+        super().__init__(mask, "assist_unavailable_action")
+        from .assist import UNAVAILABLE_ACTIONS
+
+        self._attr_options = list(UNAVAILABLE_ACTIONS)
+
+    @property
+    def current_option(self) -> str:
+        return self.mask.state.assist_unavailable_action
+
+    async def async_select_option(self, option: str) -> None:
+        self.mask.set_assist_option(unavailable_action=option)

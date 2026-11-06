@@ -97,7 +97,7 @@
         },
         "temporary": {
           "name": "Temporary",
-          "description": "Don't remember this as the chosen face (used by the voice-face automation)."
+          "description": "Don't remember this as the chosen face (used for assistant faces)."
         },
         "hold_music": {
           "name": "Hold music bars",
@@ -272,7 +272,7 @@
     },
     "set_music_hold": {
       "name": "Hold music bars",
-      "description": "Pause the music bars while the voice assistant face is shown (used by the voice-face blueprint).",
+      "description": "Pause the music bars while the voice assistant face is shown (the built-in assistant faces do this themselves).",
       "fields": {
         "hold": {
           "name": "Hold",
