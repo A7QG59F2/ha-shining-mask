@@ -225,5 +225,5 @@ shawnrancatore/shining-mask, bishopfox/shining-mask.
 
 ## Credits
 - [brickcraftdream/shining-mask-stuff](https://github.com/brickcraftdream/shining-mask-stuff): BLE protocol
-  notes. Built-in id ranges (images up to 105, animations up to 69), the 10-slot PLAY limit, safe text
+  notes. Built-in animation range (up to 69), the 10-slot PLAY limit, safe text
   width, brightness/flicker advice, and the text effect descriptions come from there.

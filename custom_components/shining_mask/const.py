@@ -11,9 +11,10 @@ CONF_BLANK_SLOT = "blank_slot"
 
 DEFAULT_DISCONNECT_AFTER = 0  # seconds; 0 = stay connected (lowest latency for a voice face)
 DEFAULT_PIXEL_ORDER = "column"
-# Built-in ids that show real content (higher ids show out-of-bounds data), per
-# brickcraftdream/shining-mask-stuff: images up to 0x69, animations up to 0x45.
-DEFAULT_MAX_IMAGE = 105
+# Built-in ids that show real content; higher ids show leftover data (tested on a real
+# mask: images 70+ show fragments of other masks). Animations up to 0x45 per
+# brickcraftdream/shining-mask-stuff.
+DEFAULT_MAX_IMAGE = 69
 DEFAULT_MAX_ANIMATION = 69
 # PLAY takes at most 10 DIY slots, so a DIY animation has at most 10 frames.
 MAX_PLAY_SLOTS = 10
