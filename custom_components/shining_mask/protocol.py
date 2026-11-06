@@ -118,9 +118,9 @@ def cmd_front_color(rgb: Sequence[int], enable: bool = True) -> bytes:
     return build_command("FC", [int(enable), *rgb[:3]])
 
 
-def cmd_back_color(rgb: Sequence[int], enable: bool = True, tag: str = "BG") -> bytes:
-    """Sources disagree on BG vs BC; the integration sends both (unknown commands are ignored)."""
-    return build_command(tag, [int(enable), *rgb[:3]])
+def cmd_back_color(rgb: Sequence[int], enable: bool = True) -> bytes:
+    """Text background colour (confirmed 'BC' from the app's protocol code)."""
+    return build_command("BC", [int(enable), *rgb[:3]])
 
 
 def cmd_text_color_mode(mode: int, enable: bool = True) -> bytes:
@@ -191,3 +191,36 @@ def encode_image_pixels(pixels: Sequence[Sequence[int]], order: str = "column") 
             for y in range(IMAGE_HEIGHT):
                 out += bytes(pixels[y * IMAGE_WIDTH + x][:3])
     return bytes(out)
+
+
+# ---------------------------------------------------- confirmed from the app (v1.2.7)
+def cmd_animation_loop() -> bytes:
+    """Cycle through all built-in animations."""
+    return build_command("LOOA")
+
+
+def cmd_exit_rhythm() -> bytes:
+    """Leave music/microphone rhythm mode."""
+    return build_command("SOUT")
+
+
+def cmd_rhythm_frame(mode: int, levels: Sequence[int]) -> bytes:
+    """One frame of the music/mic visualiser: no ASCII tag, [0x0F][mode][12 bar levels].
+
+    levels: 12 values 0-15 (bar heights). Send repeatedly (e.g. 10-20 per second).
+    """
+    lv = [max(0, min(15, int(v))) for v in list(levels)[:12]]
+    lv += [0] * (12 - len(lv))
+    return encrypt_block(bytes([0x0F, mode & 0xFF, *lv]).ljust(16, b"\x00"))
+
+
+def cmd_gesture(enable: bool, slots: Sequence[int] = (), mode: int = 0, content: int = 0) -> bytes:
+    """EXPERIMENTAL 'FACE' gesture face-change setting.
+
+    Layout from the app: [8+n]'FACE'[enable][mode][count][content][slot1..slot7].
+    The meaning of mode/content is not confirmed - test values on the mask.
+    """
+    slots = [s & 0xFF for s in list(slots)[:7]]
+    if not enable:
+        return build_command("FACE", [0, 0, 0, 0])
+    return build_command("FACE", [1, mode & 0xFF, len(slots), (content & 0xFF) if slots else 0, *slots])

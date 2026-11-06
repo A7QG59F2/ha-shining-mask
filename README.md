@@ -85,6 +85,14 @@ Any state can use a built-in image or animation instead (kind = image/animation)
   Re-run it after adding pictures.
 - Preview files are served read-only at `/shining_mask/diy/…` and `/shining_mask/builtin/…`.
 
+## More app features
+- `shining_mask.loop_animations`: cycle through all built-in animations (the app's loop mode).
+- `shining_mask.rhythm`: music-rhythm visualiser bars. Each frame is 12 levels 0–15; separate frames
+  with `;`. `mode` picks the rhythm effect. `shining_mask.stop_rhythm` returns to the previous face.
+- `shining_mask.set_gesture` (**experimental**): turn gesture face-switching on/off with up to 7 DIY
+  slots. The `mode`/`content` option bytes aren't confirmed yet.
+- Text background colour now uses the confirmed `BC` command.
+
 ## Options
 - **Disconnect after idle seconds**: 0 (default) keeps the link open for instant face changes.
   Set this to e.g. 60 to save mask battery or free a proxy slot.

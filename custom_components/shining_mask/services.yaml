@@ -84,6 +84,61 @@ install_face_pack:
         select:
           options: [auto, crop, scale]
 
+loop_animations:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+
+rhythm:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    mode:
+      default: 0
+      selector:
+        number: { min: 0, max: 20, mode: box }
+    levels:
+      required: true
+      example: "2,5,9,14,15,12,8,5,3,6,10,4; 1,3,6,9,12,15,15,12,9,6,3,1"
+      selector:
+        text:
+    interval:
+      default: 0.08
+      selector:
+        number: { min: 0.02, max: 2, step: 0.01, unit_of_measurement: s }
+
+stop_rhythm:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+
+set_gesture:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    enabled:
+      required: true
+      selector:
+        boolean:
+    slots:
+      example: "1,2,3"
+      selector:
+        text:
+    mode:
+      default: 0
+      selector:
+        number: { min: 0, max: 255, mode: box }
+    content:
+      default: 0
+      selector:
+        number: { min: 0, max: 255, mode: box }
+
 restore_selected:
   target:
     entity:

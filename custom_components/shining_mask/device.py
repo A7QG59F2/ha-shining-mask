@@ -474,7 +474,7 @@ class ShiningMask:
 
     async def async_set_bg_color(self, rgb: Sequence[int] | None, enable: bool) -> None:
         rgb = list(rgb) if rgb is not None else self.state.bg_color
-        await self.async_send(p.cmd_back_color(rgb, enable, "BG"), p.cmd_back_color(rgb, enable, "BC"))
+        await self.async_send(p.cmd_back_color(rgb, enable))
         self.state.bg_color, self.state.bg_color_on = rgb, enable
         self._notify_listeners()
 
@@ -483,6 +483,27 @@ class ShiningMask:
         await self.async_send(p.cmd_text_color_mode(value or 0, value is not None))
         self.state.text_effect = name
         self._notify_listeners()
+
+    async def async_animation_loop(self) -> None:
+        await self._wake()
+        await self.async_send(p.cmd_animation_loop())
+        self.state.image, self.state.animation, self.state.diy = None, None, []
+        self._notify_listeners()
+
+    async def async_rhythm(self, mode: int, frames: Sequence[Sequence[int]], interval: float = 0.08) -> None:
+        """Send one or more visualiser frames (12 levels 0-15 each)."""
+        await self._wake()
+        for i, levels in enumerate(frames):
+            await self.async_send(p.cmd_rhythm_frame(mode, levels))
+            if i < len(frames) - 1:
+                await asyncio.sleep(interval)
+
+    async def async_exit_rhythm(self) -> None:
+        await self.async_send(p.cmd_exit_rhythm())
+        await self._restore_face()
+
+    async def async_set_gesture(self, enable: bool, slots: Sequence[int], mode: int, content: int) -> None:
+        await self.async_send(p.cmd_gesture(enable, slots, mode, content))
 
     async def async_set_text_mode(self, mode_name: str, mode_value: int) -> None:
         await self.async_send(p.cmd_text_mode(mode_value))

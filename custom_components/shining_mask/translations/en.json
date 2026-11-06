@@ -199,6 +199,54 @@
           "description": "auto keeps pixel art 1:1 (best for frames drawn for the mask); scale shrinks big pictures."
         }
       }
+    },
+    "loop_animations": {
+      "name": "Loop all animations",
+      "description": "Cycle through every built-in animation (the app's loop mode)."
+    },
+    "rhythm": {
+      "name": "Rhythm / visualiser frames",
+      "description": "Show music-rhythm bars: each frame is 12 levels 0-15; separate frames with ';'.",
+      "fields": {
+        "mode": {
+          "name": "Rhythm effect",
+          "description": "Visualiser style number (the app's rhythm effects)."
+        },
+        "levels": {
+          "name": "Levels",
+          "description": "12 bar heights 0-15 per frame, frames separated by ';'."
+        },
+        "interval": {
+          "name": "Frame interval",
+          "description": "Seconds between frames."
+        }
+      }
+    },
+    "stop_rhythm": {
+      "name": "Stop rhythm",
+      "description": "Leave rhythm mode and return to the previous face."
+    },
+    "set_gesture": {
+      "name": "Gesture face-change (experimental)",
+      "description": "Turn the mask's gesture face-switching on/off and choose up to 7 DIY slots. Mode/content meanings are unconfirmed.",
+      "fields": {
+        "enabled": {
+          "name": "Enabled",
+          "description": "On or off."
+        },
+        "slots": {
+          "name": "Slots",
+          "description": "Up to 7 DIY slots, comma-separated."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "Experimental option byte."
+        },
+        "content": {
+          "name": "Content",
+          "description": "Experimental option byte."
+        }
+      }
     }
   }
 }

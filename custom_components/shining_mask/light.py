@@ -74,6 +74,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     )
     platform.async_register_entity_service("install_default_faces", {}, "svc_install_default_faces")
     platform.async_register_entity_service("restore_selected", {}, "svc_restore_selected")
+    platform.async_register_entity_service("loop_animations", {}, "svc_loop_animations")
+    platform.async_register_entity_service(
+        "rhythm",
+        {
+            vol.Optional("mode", default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=255)),
+            vol.Required("levels"): cv.string,
+            vol.Optional("interval", default=0.08): vol.All(vol.Coerce(float), vol.Range(min=0.02, max=2)),
+        },
+        "svc_rhythm",
+    )
+    platform.async_register_entity_service("stop_rhythm", {}, "svc_stop_rhythm")
+    platform.async_register_entity_service(
+        "set_gesture",
+        {
+            vol.Required("enabled"): cv.boolean,
+            vol.Optional("slots", default=""): cv.string,
+            vol.Optional("mode", default=0): cv.byte,
+            vol.Optional("content", default=0): cv.byte,
+        },
+        "svc_set_gesture",
+    )
     platform.async_register_entity_service(
         "install_face_pack",
         {
@@ -219,6 +240,33 @@ class MaskLight(MaskEntity, LightEntity):
             "roles": {role: [f"slot {frame_slot[str(f)]}: {f.name}" for f in frames] for role, frames in plan.items()},
             "slots_used": f"{start_slot}-{next_slot - 1}",
         }
+
+    async def svc_loop_animations(self) -> None:
+        await self.mask.async_animation_loop()
+
+    async def svc_rhythm(self, levels: str, mode: int = 0, interval: float = 0.08) -> None:
+        """levels: one frame "0,3,7,15,..." (12 numbers 0-15); several frames separated by ';'."""
+        frames = []
+        for chunk in levels.split(";"):
+            vals = [v for v in chunk.replace(" ", "").split(",") if v]
+            if not vals:
+                continue
+            try:
+                frames.append([int(v) for v in vals])
+            except ValueError as err:
+                raise ServiceValidationError(f"Bad levels '{chunk}': use numbers 0-15") from err
+        if not frames:
+            raise ServiceValidationError("Give at least one frame of up to 12 levels (0-15)")
+        await self.mask.async_rhythm(mode, frames, interval)
+
+    async def svc_stop_rhythm(self) -> None:
+        await self.mask.async_exit_rhythm()
+
+    async def svc_set_gesture(self, enabled: bool, slots: str = "", mode: int = 0, content: int = 0) -> None:
+        slot_list = _slots(slots) if slots.strip() else []
+        if len(slot_list) > 7:
+            raise ServiceValidationError("Gesture face-change supports at most 7 slots")
+        await self.mask.async_set_gesture(enabled, slot_list, mode, content)
 
     async def svc_restore_selected(self) -> None:
         await self.mask.async_restore_selected()
