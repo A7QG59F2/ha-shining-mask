@@ -1,7 +1,7 @@
 blueprint:
   name: Shining Mask - voice assistant face
   description: >
-    Gives a voice satellite (e.g. a TECHO5 Echo Show) a face on a Shining LED mask.
+    Gives a voice satellite a face on a Shining LED mask.
     Each assistant state shows a mask face. "kind" is image (built-in), animation (built-in)
     or diy (uploaded slots; comma list cycles, e.g. "4,5" = talking mouth), or pack (the assistant
     face pack installed with shining_mask.install_face_pack; the value field is ignored).

@@ -17,7 +17,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
 
 
 class MaskGestureSwitch(MaskEntity, SwitchEntity):
-    _attr_name = "Gesture face switch"
+    _attr_name = "Gesture"
     _attr_icon = "mdi:hand-wave"
     _attr_assumed_state = True
 
@@ -43,7 +43,7 @@ class MaskGestureSwitch(MaskEntity, SwitchEntity):
 class MaskVisualizerSwitch(MaskEntity, SwitchEntity):
     """Music bars from Music Assistant (Sendspin visualizer)."""
 
-    _attr_name = "Music visualizer"
+    _attr_name = "Visualizer"
     _attr_icon = "mdi:equalizer"
 
     def __init__(self, mask) -> None:

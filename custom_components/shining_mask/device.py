@@ -1,4 +1,4 @@
-"""BLE connection manager for one Shining Mask (works through ESPHome/TECHO5 proxies)."""
+"""BLE connection manager for one Shining Mask (local adapter or ESPHome Bluetooth proxy)."""
 
 from __future__ import annotations
 
@@ -200,7 +200,7 @@ class ShiningMask:
         if device is None:
             raise HomeAssistantError(
                 f"{self.name} is not in range of any connectable Bluetooth adapter or proxy "
-                "(is 'Bluetooth proxy connections' enabled on the TECHO5 Show, and is the mask on?)"
+                "(is the mask on, and does the proxy allow active connections?)"
             )
         _LOGGER.debug("Connecting to %s via %s", self.address, getattr(device, "details", None))
         try:

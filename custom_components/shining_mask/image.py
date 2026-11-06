@@ -21,7 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
 
 
 class MaskCurrentFace(MaskEntity, ImageEntity):
-    _attr_name = "Current face"
+    _attr_name = "Face now showing"
     _attr_icon = "mdi:face-man-shimmer"
 
     def __init__(self, hass: HomeAssistant, mask) -> None:

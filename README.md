@@ -1,14 +1,17 @@
 # Shining Mask for Home Assistant
 
-Control a "Shining Mask" app LED mask from Home Assistant over Bluetooth, via any
-connectable Bluetooth proxy (here a **TECHO5 Echo Show**), and give a voice
+Control a "Shining Mask" app LED mask from Home Assistant over Bluetooth, and give a voice
 satellite a face.
 
-## 1. Prepare the TECHO5 Show as a Bluetooth proxy
-1. Update TECHO5 to **v1.6.10 or newer** (proxy connections need 1.6.8+, and an API encryption key is required since 1.6.10).
-2. In the Show's ESPHome device page in HA, turn on **Bluetooth proxy connections**.
-   The Show lends up to **3** active connections; this mask uses 1 while connected.
-3. Keep the mask within a few metres of the Show for the first setup.
+## 1. Bluetooth
+This is a standard Home Assistant Bluetooth integration. It works with anything HA's
+[Bluetooth integration](https://www.home-assistant.io/integrations/bluetooth/) can **connect** through:
+- a Bluetooth adapter on the HA host, or
+- an ESPHome Bluetooth proxy with **active connections** enabled (`bluetooth_proxy: active: true`,
+  or the *Bluetooth proxy connections* switch on prebuilt proxy firmware).
+
+The mask uses one connection while connected. Keep it within a few metres of the adapter or proxy
+for the first setup.
 
 ## 2. Install
 - **HACS:** add this repo as a custom repository (type Integration), install, restart HA.
@@ -19,17 +22,19 @@ Turn the mask on. It advertises as `MASK-xxxx` and HA should discover it
 **Close the phone app first.** The mask accepts only one connection at a time.
 
 ## 3. Entities
-| Entity | What it does |
+Entity names start with their section, so the device page groups them:
+
+| Section | Entities |
 |---|---|
-| `light.mask_…` | On/off + brightness (off = brightness 0) |
-| `number.…_image` | Show built-in image N |
-| `number.…_animation` | Play built-in animation N |
-| `number.…_speed` | Animation/DIY/text speed |
-| `select.…_text_mode` | steady / blink / scroll left / scroll right |
-| `text.…_text` | Type text to upload and show it |
-| `light.…_text_color` | Text colour (on = custom colour, colour picker = colour) |
-| `light.…_text_background_color` | Background colour behind text |
-| `select.…_text_effect` | `solid`, `gradient_1`–`4` (text gradients), `background_1`–`4` (animated backgrounds) |
+| Mask | the mask light (on/off + brightness), Face now showing (preview) |
+| Face | Face image, Face animation, Face speed |
+| Text | Text, Text effect, Text mode, Text color, Text background color |
+| Visualizer | Visualizer (on/off), style, sensitivity, contrast, bass, mid, treble, delay |
+| Gesture | Gesture (on/off), Gesture library, Gesture circulation |
+
+For a card with every setting in that order, run `shining_mask.generate_dashboard` (tick *return
+response*). It writes `/config/shining_mask/settings_card.yaml`. Paste that into a dashboard via
+*Add card → Manual*.
 
 State is *assumed* (the mask doesn't report back), so the entities show the last value you sent.
 
@@ -131,7 +136,7 @@ playback, to Sendspin "visualizer" clients. The mask can be one of those clients
 - **"Not in range of any connectable Bluetooth adapter or proxy"**: HA hears the mask only through a
   listen-only path. Open Settings → Devices & services → Bluetooth → Configure → *Advertisement monitor*
   and find `MASK-xxxxxx`. If `connectable` is `false`, the proxy (`source`) isn't allowing connections.
-  On TECHO5, turn on the **Bluetooth proxy connections** toggle, power-cycle the mask, and wait until
+  Enable active connections on that proxy, power-cycle the mask, and wait until
   the monitor shows `connectable: true`.
 - **Setup finds no masks**: the setup screen lists every named nearby device and has a manual-address option.
 - **Commands fail after connecting**: the mask light entity's `last_error` and `gatt` attributes show

@@ -90,7 +90,7 @@ class MaskGestureCirculationSelect(MaskEntity, SelectEntity):
 class MaskBarsStyleSelect(MaskEntity, SelectEntity):
     """Look of the music bars (the mask's five rhythm styles)."""
 
-    _attr_name = "Music bars style"
+    _attr_name = "Visualizer style"
     _attr_icon = "mdi:chart-bar"
     _attr_options = list(BAR_STYLES)
 

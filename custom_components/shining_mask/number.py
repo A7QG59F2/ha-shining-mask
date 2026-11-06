@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,18 +19,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
             MaskAnimationNumber(mask, entry.options.get(CONF_MAX_ANIMATION, DEFAULT_MAX_ANIMATION)),
             MaskSpeedNumber(mask),
             MaskBarsDelayNumber(mask),
-            MaskBarsTuneNumber(mask, "bars_sensitivity", "Music bars sensitivity", "mdi:tune-vertical", 10, 300, 5, "%"),
-            MaskBarsTuneNumber(mask, "bars_contrast", "Music bars contrast", "mdi:contrast-box", 1.0, 3.0, 0.1, None),
-            MaskBarsTuneNumber(mask, "bars_bass", "Music bars bass", "mdi:speaker", 0, 200, 5, "%"),
-            MaskBarsTuneNumber(mask, "bars_mid", "Music bars mid", "mdi:speaker", 0, 200, 5, "%"),
-            MaskBarsTuneNumber(mask, "bars_treble", "Music bars treble", "mdi:speaker", 0, 200, 5, "%"),
+            MaskBarsTuneNumber(mask, "bars_sensitivity", "Visualizer sensitivity", "mdi:tune-vertical", 10, 300, 5, "%"),
+            MaskBarsTuneNumber(mask, "bars_contrast", "Visualizer contrast", "mdi:contrast-box", 1.0, 3.0, 0.1, None),
+            MaskBarsTuneNumber(mask, "bars_bass", "Visualizer bass", "mdi:speaker", 0, 200, 5, "%"),
+            MaskBarsTuneNumber(mask, "bars_mid", "Visualizer mid", "mdi:speaker", 0, 200, 5, "%"),
+            MaskBarsTuneNumber(mask, "bars_treble", "Visualizer treble", "mdi:speaker", 0, 200, 5, "%"),
         ]
     )
 
 
 class MaskImageNumber(MaskEntity, NumberEntity):
     _attr_translation_key = "image"
-    _attr_name = "Image"
+    _attr_name = "Face image"
     _attr_icon = "mdi:emoticon-outline"
     _attr_native_min_value = 1
     _attr_native_step = 1
@@ -51,7 +50,7 @@ class MaskImageNumber(MaskEntity, NumberEntity):
 
 class MaskAnimationNumber(MaskEntity, NumberEntity):
     _attr_translation_key = "animation"
-    _attr_name = "Animation"
+    _attr_name = "Face animation"
     _attr_icon = "mdi:animation-play"
     _attr_native_min_value = 1
     _attr_native_step = 1
@@ -71,12 +70,11 @@ class MaskAnimationNumber(MaskEntity, NumberEntity):
 
 class MaskSpeedNumber(MaskEntity, NumberEntity):
     _attr_translation_key = "speed"
-    _attr_name = "Speed"
+    _attr_name = "Face speed"
     _attr_icon = "mdi:speedometer"
     _attr_native_min_value = 0
     _attr_native_max_value = 255
     _attr_native_step = 1
-    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, mask) -> None:
         super().__init__(mask, "speed")
@@ -92,14 +90,13 @@ class MaskSpeedNumber(MaskEntity, NumberEntity):
 class MaskBarsDelayNumber(MaskEntity, NumberEntity):
     """Shift the bars later (+) or earlier (-) to line up with what you hear."""
 
-    _attr_name = "Music bars delay"
+    _attr_name = "Visualizer delay"
     _attr_icon = "mdi:timer-sync-outline"
     _attr_native_min_value = -1000
     _attr_native_max_value = 2000
     _attr_native_step = 10
     _attr_native_unit_of_measurement = "ms"
     _attr_mode = NumberMode.BOX
-    _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, mask) -> None:
         super().__init__(mask, "bars_delay")

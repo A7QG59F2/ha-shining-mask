@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Pick your mask",
-        "description": "{hint} Make sure the mask is on and the phone app is closed. Entries marked 'non-connectable' are only heard by a proxy that can't connect - turn on 'Bluetooth proxy connections' on your TECHO5 device.",
+        "description": "{hint} Make sure the mask is on and the phone app is closed. Entries marked 'non-connectable' are only heard by a proxy that can't connect - enable active connections on that Bluetooth proxy.",
         "data": {
           "address": "Device"
         }
@@ -22,7 +22,7 @@
     },
     "abort": {
       "already_configured": "This mask is already configured.",
-      "no_devices_found": "No masks found. Turn the mask on and make sure a Bluetooth proxy with active connections (e.g. TECHO5 Show) is in range."
+      "no_devices_found": "No masks found. Turn the mask on and make sure a Bluetooth adapter or a proxy with active connections is in range."
     },
     "error": {
       "invalid_address": "That doesn't look like a Bluetooth address (AA:BB:CC:DD:EE:FF)."
@@ -171,7 +171,7 @@
     },
     "generate_dashboard": {
       "name": "Generate dashboard",
-      "description": "Build tap-to-show thumbnail grids (your DIY faces plus pictures in /config/shining_mask/builtin). Writes dashboard_card.yaml (a card) and dashboard_panel_view.yaml (a full panel view) in /config/shining_mask/.",
+      "description": "Build tap-to-show thumbnail grids (your DIY faces plus pictures in /config/shining_mask/builtin). Writes dashboard_card.yaml (a card), dashboard_panel_view.yaml (a full panel view) and settings_card.yaml (every setting, in sections) in /config/shining_mask/.",
       "fields": {
         "columns": {
           "name": "Columns",

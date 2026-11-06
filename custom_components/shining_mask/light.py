@@ -7,14 +7,13 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_RGB_COLOR, ColorMode, LightEntity
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import MaskConfigEntry
-from .const import TEXT_MODES
+from .const import DOMAIN, TEXT_MODES
 from .entity import MaskEntity
 
 SLOT = vol.All(vol.Coerce(int), vol.Range(min=1, max=255))
@@ -368,12 +367,59 @@ class MaskLight(MaskEntity, LightEntity):
             return card, unassigned, str(base), str(builtin_dir(self.hass)), len(scan_builtin(self.hass))
 
         card, unassigned, base, folder, found = await self.hass.async_add_executor_job(_build)
+        settings = self._settings_card()
+
+        def _write_settings():
+            import pathlib
+
+            import yaml
+
+            (pathlib.Path(base) / "settings_card.yaml").write_text(yaml.safe_dump(settings, sort_keys=False))
+
+        await self.hass.async_add_executor_job(_write_settings)
         return {
+            "settings_card_file": f"{base}/settings_card.yaml",
+            "settings_card": settings,
             "card_file": f"{base}/dashboard_card.yaml",
             "panel_view_file": f"{base}/dashboard_panel_view.yaml",
             "builtin_folder": folder,
             "builtin_pictures_found": found,
             "unassigned_builtin_files": unassigned,
+        }
+
+    def _settings_card(self) -> dict[str, Any]:
+        """Every mask setting, grouped into sections in a sensible order."""
+        from homeassistant.helpers import entity_registry as er
+
+        reg = er.async_get(self.hass)
+        addr = self.mask.address
+
+        def ent(domain: str, key: str):
+            return reg.async_get_entity_id(domain, DOMAIN, f"{addr}_{key}")
+
+        def section(title: str, rows: list[tuple[str, str, str]]) -> dict[str, Any]:
+            items = [{"entity": e, "name": n} for d, k, n in rows if (e := ent(d, k))]
+            return {"type": "entities", "title": title, "state_color": True, "entities": items}
+
+        return {
+            "type": "vertical-stack",
+            "cards": [
+                section("Mask", [("light", "light", "Mask"), ("image", "current_face", "Now showing")]),
+                section("Face", [("number", "image", "Image"), ("number", "animation", "Animation"),
+                                 ("number", "speed", "Speed")]),
+                section("Text", [("text", "text", "Text"), ("select", "text_effect", "Effect"),
+                                 ("select", "text_mode", "Mode"), ("light", "text_color", "Color"),
+                                 ("light", "bg_color", "Background color")]),
+                section("Visualizer", [("switch", "music_visualizer", "On / off"),
+                                       ("select", "bars_style_select", "Style"),
+                                       ("number", "bars_sensitivity", "Sensitivity"),
+                                       ("number", "bars_contrast", "Contrast"),
+                                       ("number", "bars_bass", "Bass"), ("number", "bars_mid", "Mid"),
+                                       ("number", "bars_treble", "Treble"), ("number", "bars_delay", "Delay")]),
+                section("Gesture", [("switch", "gesture_switch", "On / off"),
+                                    ("select", "gesture_library", "Library"),
+                                    ("select", "gesture_circulation", "Circulation")]),
+            ],
         }
 
     async def svc_delete_diy(self, slots: list[int]) -> None:
@@ -393,7 +439,6 @@ class _ColorLight(MaskEntity, LightEntity):
     _attr_color_mode = ColorMode.RGB
     _attr_supported_color_modes = {ColorMode.RGB}
     _attr_assumed_state = True
-    _attr_entity_category = EntityCategory.CONFIG
     _key = ""
 
     def __init__(self, mask) -> None:
