@@ -96,7 +96,7 @@ class MaskBarsStyleNumber(MaskEntity, NumberEntity):
     _attr_name = "Music bars style"
     _attr_icon = "mdi:chart-bar"
     _attr_native_min_value = 0
-    _attr_native_max_value = 5  # the app's six styles (0-5)
+    _attr_native_max_value = 4  # five styles (0-4); 5+ freezes the mask
     _attr_native_step = 1
     _attr_mode = NumberMode.BOX
 
