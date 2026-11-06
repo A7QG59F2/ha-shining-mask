@@ -129,7 +129,7 @@ class ShiningMask:
         s.gesture_circulation = data.get("gesture_circulation", "order")
         s.gesture_items = [int(v) for v in data.get("gesture_items", [])]
         s.visualizer_on = bool(data.get("visualizer_on", False))
-        s.visualizer_style = int(data.get("visualizer_style", 0))
+        s.visualizer_style = max(0, min(4, int(data.get("visualizer_style", 0))))
         s.visualizer_delay_ms = int(data.get("visualizer_delay_ms", 0))
         for key in ("bars_sensitivity", "bars_bass", "bars_mid", "bars_treble"):
             setattr(s, key, int(data.get(key, 100)))
@@ -576,7 +576,7 @@ class ShiningMask:
         """style, delay_ms, bars_sensitivity, bars_contrast, bars_bass, bars_mid, bars_treble."""
         s = self.state
         if "style" in values:
-            s.visualizer_style = int(values["style"])
+            s.visualizer_style = max(0, min(4, int(values["style"])))
         if "delay_ms" in values:
             s.visualizer_delay_ms = int(values["delay_ms"])
         for key in ("bars_sensitivity", "bars_contrast", "bars_bass", "bars_mid", "bars_treble"):
