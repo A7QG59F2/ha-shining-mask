@@ -108,6 +108,9 @@ playback, to Sendspin "visualizer" clients. The mask can be one of those clients
   what you hear (e.g. a speaker that adds its own delay).
 - **The assistant face always wins:** the voice-face blueprint pauses the bars while the assistant is
   listening, thinking or talking (`shining_mask.set_music_hold`), and they resume when it goes idle.
+  The mask is taken out of bar mode before the face is sent, and any temporary face (`show_face` with
+  `temporary: true`) also keeps the bars away for 45 seconds, so it works even from your own scripts.
+  Picking a face yourself (dashboard, Image/Animation numbers) does not pause the bars.
 - **EQ:** `…_music_bars_sensitivity` (overall height), `…_music_bars_contrast` (higher = quiet bands
   drop further, peaks still reach the top), and `…_music_bars_bass` / `_mid` / `_treble`
   (bars 1–4 / 5–8 / 9–12). All apply live while music plays.

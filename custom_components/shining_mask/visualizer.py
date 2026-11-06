@@ -207,7 +207,7 @@ class MaskVisualizer:
         while True:
             await asyncio.sleep(SEND_INTERVAL)
             now = self.hass.loop.time()
-            if self.mask.music_hold:
+            if self.mask.holding_music:
                 self._latest = None  # drop frames while the assistant face is up
                 continue
             if self._latest is not None and now - self._last_frame_at < IDLE_RESTORE_S:
@@ -222,7 +222,7 @@ class MaskVisualizer:
 
     async def _end_bars(self) -> None:
         self._active = False
-        if self.mask.music_hold:
+        if self.mask.holding_music:
             return  # never cover the assistant face
         try:
             await self.mask.async_exit_rhythm()
