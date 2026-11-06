@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -15,6 +16,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import MaskConfigEntry, protocol as p
 from .const import DOMAIN, TEXT_MODES
 from .entity import MaskEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 SLOT = vol.All(vol.Coerce(int), vol.Range(min=1, max=255))
 
@@ -111,8 +114,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
         "install_effect",
         {
             vol.Optional("effect", default="matrix"): vol.In(["matrix"]),
-            vol.Optional("start_slot", default=30): vol.All(vol.Coerce(int), vol.Range(min=1, max=250)),
-            vol.Optional("frames", default=16): vol.All(vol.Coerce(int), vol.Range(min=4, max=48)),
+            vol.Optional("start_slot", default=1): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
+            vol.Optional("frames", default=8): vol.All(vol.Coerce(int), vol.Range(min=4, max=30)),
             vol.Optional("speed", default=200): cv.byte,
         },
         "svc_install_effect",
@@ -393,7 +396,7 @@ class MaskLight(MaskEntity, LightEntity):
         await self.mask.async_check()
 
     async def svc_install_effect(
-        self, effect: str = "matrix", start_slot: int = 30, frames: int = 16, speed: int = 200
+        self, effect: str = "matrix", start_slot: int = 1, frames: int = 8, speed: int = 200
     ) -> dict[str, Any]:
         """Action: draw an animated effect, upload its frames to DIY slots, then play it.
 
@@ -401,8 +404,16 @@ class MaskLight(MaskEntity, LightEntity):
         previews like any DIY image, and play as a DIY sequence that becomes the chosen face.
         Uploading takes a few seconds per frame; it only has to be done once.
         """
+        from .const import CLOCK_FIRST_SLOT, MAX_DIY_SLOT
         from .effects import EFFECTS
 
+        last = start_slot + frames - 1
+        if last > MAX_DIY_SLOT:
+            raise ServiceValidationError(
+                f"Slots {start_slot}-{last} don't fit: the mask stores DIY slots 1-{MAX_DIY_SLOT}"
+            )
+        if last >= CLOCK_FIRST_SLOT:
+            _LOGGER.warning("Effect slots %s-%s overlap the clock's slots %s-%s", start_slot, last, CLOCK_FIRST_SLOT, MAX_DIY_SLOT)
         images = await self.hass.async_add_executor_job(EFFECTS[effect], frames)
         slots = list(range(start_slot, start_slot + len(images)))
         for i, (slot, img) in enumerate(zip(slots, images), 1):

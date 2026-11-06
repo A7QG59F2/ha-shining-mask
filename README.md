@@ -55,9 +55,14 @@ Turn on the **Clock** switch to make a live clock the face the mask goes back to
   and the day and date.
 
 The mask can't draw on its own, so the integration uploads the next minute (2 frames) into DIY
-slots 46-49 at :35 and switches to it exactly on the minute. It only does this while the clock
+slots 31-34 at :35 and switches to it exactly on the minute. It only does this while the clock
 is on screen. Assistant faces and music bars still take over and hand the screen back to the
 clock. **Clock speed** sets how fast the two frames alternate.
+
+## DIY slot limit
+The mask only stores DIY slots **1-34**. Uploads to slot 35 or higher are refused. Default layout:
+default faces 1-7, black "off" frame 9, face pack from 10, Matrix 1-8 if you install it over the
+default faces, and the clock in 31-34.
 
 ## Reset
 `shining_mask.reset_mask` (with `confirm: true`) deletes every uploaded DIY image: face pack,
@@ -65,7 +70,7 @@ effects, clock frames and default faces. It also turns off text colours, effects
 clears the previews, and shows built-in image 1. Built-in images and animations can't be removed.
 
 ## Animated effects
-`shining_mask.install_effect` draws an effect, uploads its frames to DIY slots (default 30 onward)
+`shining_mask.install_effect` draws an effect, uploads its frames to DIY slots (default 8 frames into slots 1-8)
 and plays it. Uploading takes a few seconds per frame, and you only do it once. After that it's a
 normal DIY sequence: play it again with `play_diy` or from the dashboard.
 - **matrix** - green "digital rain" falling down the mask, with bright heads, fading trails and

@@ -185,7 +185,7 @@
       "description": "Draw an animated effect (Matrix digital rain), upload its frames to DIY slots and play it. One-time upload, a few seconds per frame.",
       "fields": {
         "effect": { "name": "Effect", "description": "Which effect to draw." },
-        "start_slot": { "name": "First DIY slot", "description": "Frames go into this slot and the ones after it." },
+        "start_slot": { "name": "First DIY slot", "description": "Frames go into this slot and the ones after it. The mask stores slots 1-34; the clock uses 31-34." },
         "frames": { "name": "Frames", "description": "More frames = smoother and longer loop, but a longer upload." },
         "speed": { "name": "Speed", "description": "Playback speed, 0-255 (same as Face speed)." }
       }

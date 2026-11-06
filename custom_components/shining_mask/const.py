@@ -15,7 +15,9 @@ DEFAULT_MAX_IMAGE = 60
 DEFAULT_MAX_ANIMATION = 60
 DEFAULT_MAX_BRIGHTNESS = 128  # 0x80 tested clean; slight flicker reported at 160, strong at 200
 DEFAULT_BLANK_SLOT = 9  # DIY slot holding an all-black frame, used for "off"
-CLOCK_FIRST_SLOT = 46  # clock screen uses DIY slots 46-49 (two frames x two buffers)
+# The mask refuses DIY uploads above slot 34 (tested: 34 accepted, 35 and up get no DATSOK).
+MAX_DIY_SLOT = 34
+CLOCK_FIRST_SLOT = 31  # clock screen uses DIY slots 31-34 (two frames x two buffers)
 
 TEXT_MODES = {
     "steady": 1,

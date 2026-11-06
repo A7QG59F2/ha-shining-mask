@@ -809,6 +809,10 @@ class ShiningMask:
         """Upload a picture (path or built-in face name) into a DIY slot."""
         if len(payload) != p.IMAGE_BYTES:
             raise HomeAssistantError(f"Image payload must be {p.IMAGE_BYTES} bytes")
+        from .const import MAX_DIY_SLOT
+
+        if not 1 <= slot <= MAX_DIY_SLOT:
+            raise HomeAssistantError(f"DIY slot {slot} is out of range: the mask stores slots 1-{MAX_DIY_SLOT}")
         await self.async_upload(p.cmd_upload_start_image(len(payload), slot), payload)
         if slot == self.blank_slot:
             self._blank_uploaded = payload == bytes(len(payload))
