@@ -242,6 +242,23 @@ generate_dashboard:
       selector:
         number: { min: 1, max: 12 }
 
+set_pack_role:
+  target:
+    entity:
+      integration: shining_mask
+      domain: light
+  fields:
+    role:
+      required: true
+      selector:
+        select:
+          options: [idle, listening, thinking, talking, error, sleep]
+    slots:
+      required: true
+      example: "14"
+      selector:
+        text:
+
 reset_mask:
   target:
     entity:

@@ -132,6 +132,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry, async_a
     platform.async_register_entity_service(
         "reset_mask", {vol.Required("confirm"): vol.All(cv.boolean, True)}, "svc_reset_mask"
     )
+    platform.async_register_entity_service(
+        "set_pack_role",
+        {
+            vol.Required("role"): vol.In(["idle", "listening", "thinking", "talking", "error", "sleep"]),
+            vol.Required("slots"): cv.string,
+        },
+        "svc_set_pack_role",
+    )
     platform.async_register_entity_service("delete_diy", {vol.Required("slots"): _slots}, "svc_delete_diy")
     platform.async_register_entity_service(
         "send_command",
@@ -534,6 +542,18 @@ class MaskLight(MaskEntity, LightEntity):
                 gesture,
             ],
         }
+
+    async def svc_set_pack_role(self, role: str, slots: str) -> None:
+        """Action: choose which DIY slots a face-pack role uses, e.g. thinking -> "14".
+
+        Slots no longer used by any role stop being protected, so the clock and effects may
+        reuse them. Empty slots = remove the role (the pack falls back to idle for it).
+        """
+        try:
+            numbers = p.parse_number_list(slots) if slots.strip() else []
+        except ValueError as err:
+            raise ServiceValidationError(f"Use slot numbers like '14' or '15-18' ({err})") from err
+        self.mask.set_pack_role(role, numbers)
 
     async def svc_reset_mask(self, confirm: bool) -> None:
         """Action: delete every uploaded DIY image, switch extras off, clear previews."""

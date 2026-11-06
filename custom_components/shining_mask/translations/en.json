@@ -149,6 +149,14 @@
       "name": "Install default faces",
       "description": "Upload the voice-assistant faces to DIY slots 1-7 (idle, listening, thinking, talk closed, talk open, error, sleep)."
     },
+    "set_pack_role": {
+      "name": "Set face pack role",
+      "description": "Choose which DIY slots a face-pack role plays (e.g. thinking -> 14). Slots no longer in the pack can be reused by the clock and effects.",
+      "fields": {
+        "role": { "name": "Role", "description": "Assistant state the slots are for." },
+        "slots": { "name": "Slots", "description": "Slot numbers, e.g. 14 or 15-18. Empty removes the role." }
+      }
+    },
     "reset_mask": {
       "name": "Reset mask",
       "description": "Delete every uploaded DIY image (face pack, effects, clock, default faces), turn off text colours, effects and gestures, clear previews, and show built-in image 1. Built-in images can't be removed.",

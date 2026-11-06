@@ -909,7 +909,8 @@ class ShiningMask:
         if any(slot in v for v in s.pack.values()):
             return "pack"
         if slot in s.slot_owner:
-            return s.slot_owner[slot]
+            # a slot dropped from the face pack (set_pack_role) is free to reuse
+            return "other" if s.slot_owner[slot] == "pack" else s.slot_owner[slot]
         name = self.slot_names.get(slot, "")
         if name.startswith("clock"):
             return "clock"
@@ -943,6 +944,14 @@ class ShiningMask:
         if len(free) < count:
             raise HomeAssistantError(f"Not enough free DIY slots: need {count}, {len(free)} can be reused")
         return sorted(slot for _, _, slot in free[:count])
+
+    def set_pack_role(self, role: str, slots: list[int]) -> None:
+        """Change which DIY slots a face-pack role plays; dropped slots become reusable."""
+        if slots:
+            self.state.pack[role] = list(slots)
+        else:
+            self.state.pack.pop(role, None)
+        self._notify_listeners()
 
     def slots_owned(self, slots: Sequence[int], owner: str) -> bool:
         """True if every slot in the list still holds `owner`'s upload."""
