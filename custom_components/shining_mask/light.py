@@ -526,65 +526,7 @@ class MaskLight(MaskEntity, LightEntity):
 
     def _settings_card(self) -> dict[str, Any]:
         """Every mask setting, grouped into sections in a sensible order."""
-        from homeassistant.helpers import entity_registry as er
-
-        reg = er.async_get(self.hass)
-        addr = self.mask.address
-
-        def ent(domain: str, key: str):
-            return reg.async_get_entity_id(domain, DOMAIN, f"{addr}_{key}")
-
-        def section(title: str, rows: list[tuple[str, str, str]]) -> dict[str, Any]:
-            items = [{"entity": e, "name": n} for d, k, n in rows if (e := ent(d, k))]
-            return {"type": "entities", "title": title, "state_color": True, "entities": items}
-
-        # Gesture: on/off, library, then the face list - shown only when the library has one to
-        # pick (gallery/diy), the way the app opens its picker - then circulation.
-        gesture = section("Gesture", [("switch", "gesture_switch", "On / off"),
-                                      ("select", "gesture_library", "Library")])
-        library, faces = ent("select", "gesture_library"), ent("text", "gesture_faces")
-        if library and faces:
-            gesture["entities"].append({
-                "type": "conditional",
-                "conditions": [{"entity": library, "state_not": "all"}],
-                "row": {"entity": faces, "name": "Faces (image numbers / DIY slots)"},
-            })
-        gesture["entities"] += section("", [("select", "gesture_circulation", "Circulation")])["entities"]
-
-        return {
-            "type": "vertical-stack",
-            "cards": [
-                section("Mask", [("light", "light", "Mask"), ("image", "current_face", "Now showing")]),
-                section("Assistant face", [
-                    ("select", "assist_satellite", "Satellite"),
-                    ("select", "assist_face_listening", "Listening"),
-                    ("select", "assist_face_thinking", "Thinking"),
-                    ("select", "assist_face_talking", "Talking"),
-                    ("number", "assist_talk_speed", "Talking speed"),
-                    ("select", "assist_face_idle", "Idle"),
-                    ("number", "assist_idle_return", "Back to chosen face after"),
-                    ("select", "assist_face_error", "Unavailable"),
-                    ("number", "assist_unavailable_after", "Unavailable for"),
-                    ("select", "assist_unavailable_action", "Then"),
-                ]),
-                section("Clock", [("switch", "clock", "Clock face"), ("select", "clock_theme", "Colors"),
-                                  ("select", "clock_style", "Style"),
-                                  ("select", "clock_weather", "Weather"), ("select", "clock_motion", "Motion"),
-                                  ("number", "clock_speed", "Blink speed")]),
-                section("Face", [("number", "image", "Image"), ("number", "animation", "Animation"),
-                                 ("number", "speed", "Speed")]),
-                section("Text", [("text", "text", "Text"), ("select", "text_effect", "Effect"),
-                                 ("select", "text_mode", "Mode"), ("light", "text_color", "Color"),
-                                 ("light", "bg_color", "Background color")]),
-                section("Visualizer", [("switch", "music_visualizer", "On / off"),
-                                       ("select", "bars_style_select", "Style"),
-                                       ("number", "bars_sensitivity", "Sensitivity"),
-                                       ("number", "bars_contrast", "Contrast"),
-                                       ("number", "bars_bass", "Bass"), ("number", "bars_mid", "Mid"),
-                                       ("number", "bars_treble", "Treble"), ("number", "bars_delay", "Delay")]),
-                gesture,
-            ],
-        }
+        return settings_card(self.hass, self.mask.address)
 
     async def svc_set_pack_role(self, role: str, slots: str) -> None:
         """Action: choose which DIY slots a face-pack role uses, e.g. thinking -> "14".
@@ -691,3 +633,65 @@ class MaskBackgroundLight(_ColorLight):
 
     async def _set(self, rgb, enable):
         await self.mask.async_set_bg_color(rgb, enable)
+
+
+def settings_card(hass, addr: str) -> dict[str, Any]:
+    """Every mask setting, grouped into sections in a sensible order."""
+    from homeassistant.helpers import entity_registry as er
+
+    reg = er.async_get(hass)
+
+    def ent(domain: str, key: str):
+        return reg.async_get_entity_id(domain, DOMAIN, f"{addr}_{key}")
+
+    def section(title: str, rows: list[tuple[str, str, str]]) -> dict[str, Any]:
+        items = [{"entity": e, "name": n} for d, k, n in rows if (e := ent(d, k))]
+        return {"type": "entities", "title": title, "state_color": True, "entities": items}
+
+    # Gesture: on/off, library, then the face list - shown only when the library has one to
+    # pick (gallery/diy), the way the app opens its picker - then circulation.
+    gesture = section("Gesture", [("switch", "gesture_switch", "On / off"),
+                                  ("select", "gesture_library", "Library")])
+    library, faces = ent("select", "gesture_library"), ent("text", "gesture_faces")
+    if library and faces:
+        gesture["entities"].append({
+            "type": "conditional",
+            "conditions": [{"entity": library, "state_not": "all"}],
+            "row": {"entity": faces, "name": "Faces (image numbers / DIY slots)"},
+        })
+    gesture["entities"] += section("", [("select", "gesture_circulation", "Circulation")])["entities"]
+
+    return {
+        "type": "vertical-stack",
+        "cards": [
+            section("Mask", [("light", "light", "Mask"), ("image", "current_face", "Now showing")]),
+            section("Assistant face", [
+                ("select", "assist_satellite", "Satellite"),
+                ("select", "assist_face_listening", "Listening"),
+                ("select", "assist_face_thinking", "Thinking"),
+                ("select", "assist_face_talking", "Talking"),
+                ("number", "assist_talk_speed", "Talking speed"),
+                ("select", "assist_face_idle", "Idle"),
+                ("number", "assist_idle_return", "Back to chosen face after"),
+                ("select", "assist_face_error", "Unavailable"),
+                ("number", "assist_unavailable_after", "Unavailable for"),
+                ("select", "assist_unavailable_action", "Then"),
+            ]),
+            section("Clock", [("switch", "clock", "Clock face"), ("select", "clock_theme", "Colors"),
+                              ("select", "clock_style", "Style"),
+                              ("select", "clock_weather", "Weather"), ("select", "clock_motion", "Motion"),
+                              ("number", "clock_speed", "Blink speed")]),
+            section("Face", [("number", "image", "Image"), ("number", "animation", "Animation"),
+                             ("number", "speed", "Speed")]),
+            section("Text", [("text", "text", "Text"), ("select", "text_effect", "Effect"),
+                             ("select", "text_mode", "Mode"), ("light", "text_color", "Color"),
+                             ("light", "bg_color", "Background color")]),
+            section("Visualizer", [("switch", "music_visualizer", "On / off"),
+                                   ("select", "bars_style_select", "Style"),
+                                   ("number", "bars_sensitivity", "Sensitivity"),
+                                   ("number", "bars_contrast", "Contrast"),
+                                   ("number", "bars_bass", "Bass"), ("number", "bars_mid", "Mid"),
+                                   ("number", "bars_treble", "Treble"), ("number", "bars_delay", "Delay")]),
+            gesture,
+        ],
+    }

@@ -1,4 +1,6 @@
-// Shining Mask photo uploader: a Home Assistant sidebar panel.
+// Shining Mask sidebar panel: a Settings tab with every mask setting (real Home Assistant
+// entity rows, laid out by the integration via the shining_mask/layout websocket command),
+// and a Pictures tab, the photo uploader:
 // Pick, drop or paste any picture, drag/zoom it into the mask outline (eye holes and the
 // LED-less bottom corners are shown), tune brightness/contrast/colour while watching a live
 // 46x58 LED preview, then send it to the mask. The 46x58 frame is rendered here in the browser
@@ -28,6 +30,45 @@ class MaskUploader extends HTMLElement {
     this._hass = hass;
     if (!this._built) this._build();
     this._fillMasks();
+    for (const c of this._cards || []) c.hass = hass;
+    if (!this._layoutAsked) this._loadSettings();
+  }
+
+  // Settings tab: ask the integration for each mask's settings card and render it with the
+  // frontend's own card helpers, so every row is a normal Home Assistant control.
+  async _loadSettings() {
+    this._layoutAsked = true;
+    const box = this.$("settings");
+    try {
+      const res = await this._hass.connection.sendMessagePromise({ type: "shining_mask/layout" });
+      const helpers = await window.loadCardHelpers();
+      box.innerHTML = "";
+      this._cards = [];
+      for (const m of res.masks) {
+        if (res.masks.length > 1) box.insertAdjacentHTML("beforeend", `<h2>${m.title}</h2>`);
+        // lay the sections out side by side instead of one tall stack
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        for (const sub of m.card.cards) {
+          const el = helpers.createCardElement(sub);
+          el.hass = this._hass;
+          this._cards.push(el);
+          grid.appendChild(el);
+        }
+        box.appendChild(grid);
+      }
+      if (!res.masks.length) box.textContent = "No mask set up yet.";
+    } catch (err) {
+      box.textContent = `Couldn't load the settings: ${err?.message || err}`;
+      this._layoutAsked = false;
+    }
+  }
+
+  _tab(name) {
+    for (const t of ["settings", "pictures"]) {
+      this.$(t).style.display = t === name ? "" : "none";
+      this.$(`tab-${t}`).classList.toggle("on", t === name);
+    }
   }
   set panel(p) { this._panel = p; }
   set narrow(n) { this._narrow = n; }
@@ -56,9 +97,16 @@ class MaskUploader extends HTMLElement {
         select, input[type=text] { padding:6px; border-radius:6px; border:1px solid var(--divider-color); background:var(--card-background-color); color:var(--primary-text-color); }
         #status { margin-top:10px; font-size:14px; min-height:20px; }
         .hint { font-size:12px; color:var(--secondary-text-color); margin-top:6px; }
+        .tabs { display:flex; gap:6px; margin-bottom:14px; }
+        .tab { background:var(--secondary-background-color); color:var(--primary-text-color); }
+        .tab.on { background:var(--primary-color); color:var(--text-primary-color, #fff); }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:16px; align-items:start; }
+        h2 { font-weight:400; font-size:18px; }
       </style>
-      <h1>Shining Mask – picture uploader</h1>
-      <div class="wrap">
+      <h1>Shining Mask</h1>
+      <div class="tabs"><button class="tab on" id="tab-settings">Settings</button><button class="tab" id="tab-pictures">Pictures</button></div>
+      <div id="settings">Loading…</div>
+      <div class="wrap" id="pictures" style="display:none">
         <div class="card">
           <div class="drop" id="drop">Drop a picture here, paste it, or <u>choose a file</u>
             <input type="file" id="file" accept="image/*" hidden></div>
@@ -94,6 +142,8 @@ class MaskUploader extends HTMLElement {
       </div>`;
     const $ = (id) => this.shadowRoot.getElementById(id);
     this.$ = $;
+    $("tab-settings").onclick = () => this._tab("settings");
+    $("tab-pictures").onclick = () => this._tab("pictures");
     for (let s = 1; s <= 34; s++) $("slot").insertAdjacentHTML("beforeend", `<option value="${s}">${s}</option>`);
 
     $("drop").onclick = () => $("file").click();

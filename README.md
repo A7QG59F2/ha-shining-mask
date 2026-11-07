@@ -45,7 +45,9 @@ response*). It writes `/config/shining_mask/settings_card.yaml`. Paste that into
 
 State is *assumed* (the mask doesn't report back), so the entities show the last value you sent.
 
-## Picture uploader (sidebar: **Mask pictures**)
+## Sidebar panel: **Shining Mask**
+The **Settings** tab shows every mask setting in sections (Mask, Assistant face, Clock, Face, Text,
+Visualizer, Gesture) using normal Home Assistant controls. The **Pictures** tab is the uploader:
 A panel in the Home Assistant sidebar (admins only) for putting any photo on the mask:
 - Drop, paste or choose a picture. Drag to move it and scroll or pinch to zoom; there's also a
   rotate slider. The mask outline is drawn on top, including the eye holes and the bottom corners,

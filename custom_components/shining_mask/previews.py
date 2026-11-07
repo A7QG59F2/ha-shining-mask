@@ -59,11 +59,36 @@ async def async_register_static(hass: HomeAssistant) -> None:
         ]
     )
     hass.data[DATA_STATIC] = True
+    _register_ws(hass)
     await _register_panel(hass)
 
 
+def _register_ws(hass: HomeAssistant) -> None:
+    """Websocket command the sidebar panel uses to get each mask's settings layout."""
+    import voluptuous as vol
+
+    from homeassistant.components import websocket_api
+
+    from .const import DOMAIN
+
+    @websocket_api.websocket_command({vol.Required("type"): "shining_mask/layout"})
+    @websocket_api.callback
+    def ws_layout(hass, connection, msg):
+        from .light import settings_card
+
+        masks = []
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            mask = getattr(entry, "runtime_data", None)
+            if mask is None:
+                continue
+            masks.append({"title": entry.title, "card": settings_card(hass, mask.address)})
+        connection.send_result(msg["id"], {"masks": masks})
+
+    websocket_api.async_register_command(hass, ws_layout)
+
+
 async def _register_panel(hass: HomeAssistant) -> None:
-    """Sidebar panel 'Mask pictures': crop any photo and send it to the mask (admins only)."""
+    """Sidebar panel 'Shining Mask': every setting, plus the picture uploader (admins only)."""
     from homeassistant.components import panel_custom
 
     js = Path(__file__).parent / "frontend" / "mask-uploader.js"
@@ -73,7 +98,7 @@ async def _register_panel(hass: HomeAssistant) -> None:
         webcomponent_name="shining-mask-uploader",
         frontend_url_path="shining-mask",
         module_url=f"{URL_ROOT}/frontend/mask-uploader.js?v={stamp}",
-        sidebar_title="Mask pictures",
+        sidebar_title="Shining Mask",
         sidebar_icon="mdi:drama-masks",
         require_admin=True,
         config={},
