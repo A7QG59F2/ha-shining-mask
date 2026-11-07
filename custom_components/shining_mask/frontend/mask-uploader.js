@@ -21,7 +21,7 @@ class MaskUploader extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this.img = null;
-    this.view = { zoom: 1, x: 0, y: 0, rot: 0 }; // image placement on the mask, in LED units
+    this.view = { zoom: 1, x: 0, y: 0, rot: 0, sx: 100, sy: 100, kx: 0, ky: 0 }; // placement in LED units; stretch %, skew °
     this.adj = { bright: 100, contrast: 100, sat: 100 };
     this._built = false;
   }
@@ -120,6 +120,10 @@ class MaskUploader extends HTMLElement {
         <div class="card" style="min-width:280px">
           <label><span>Zoom</span><input type="range" id="zoom" min="10" max="800" value="100"></label>
           <label><span>Rotate</span><input type="range" id="rot" min="-180" max="180" value="0"></label>
+          <label><span>Stretch ↔</span><input type="range" id="sx" min="50" max="200" value="100"></label>
+          <label><span>Stretch ↕</span><input type="range" id="sy" min="50" max="200" value="100"></label>
+          <label><span>Skew ↔</span><input type="range" id="kx" min="-45" max="45" value="0"></label>
+          <label><span>Skew ↕</span><input type="range" id="ky" min="-45" max="45" value="0"></label>
           <label><span>Brightness</span><input type="range" id="bright" min="20" max="200" value="100"></label>
           <label><span>Contrast</span><input type="range" id="contrast" min="20" max="250" value="100"></label>
           <label><span>Colour</span><input type="range" id="sat" min="0" max="250" value="100"></label>
@@ -127,6 +131,7 @@ class MaskUploader extends HTMLElement {
             <button class="sec" id="fit">Fit</button>
             <button class="sec" id="fill">Fill</button>
             <button class="sec" id="reset">Reset colours</button>
+            <button class="sec" id="resetshape">Reset shape</button>
           </div>
           <label style="margin-top:14px"><span>Mask</span><select id="mask"></select></label>
           <label><span>Name</span><input type="text" id="name" placeholder="my picture"></label>
@@ -160,6 +165,13 @@ class MaskUploader extends HTMLElement {
     for (const k of ["bright", "contrast", "sat"]) $(k).oninput = (e) => { this.adj[k] = +e.target.value; this._draw(); };
     $("zoom").oninput = (e) => { this._zoomAbout(+e.target.value / 100, W / 2, H / 2); };
     $("rot").oninput = (e) => { this.view.rot = +e.target.value; this._draw(); };
+    for (const k of ["sx", "sy", "kx", "ky"]) $(k).oninput = (e) => { this.view[k] = +e.target.value; this._draw(); };
+    $("resetshape").onclick = () => {
+      Object.assign(this.view, { rot: 0, sx: 100, sy: 100, kx: 0, ky: 0 });
+      for (const k of ["rot", "kx", "ky"]) $(k).value = 0;
+      $("sx").value = $("sy").value = 100;
+      this._draw();
+    };
     $("fit").onclick = () => this._place(false);
     $("fill").onclick = () => this._place(true);
     $("reset").onclick = () => { this.adj = { bright: 100, contrast: 100, sat: 100 }; ["bright", "contrast", "sat"].forEach((k) => ($(k).value = 100)); this._draw(); };
@@ -255,6 +267,9 @@ class MaskUploader extends HTMLElement {
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = smooth ? "high" : "medium";
       ctx.translate(this.view.x * scale, this.view.y * scale);
       ctx.rotate((this.view.rot * Math.PI) / 180);
+      const rad = Math.PI / 180;
+      ctx.transform(1, Math.tan(this.view.ky * rad), Math.tan(this.view.kx * rad), 1, 0, 0); // skew
+      ctx.scale(this.view.sx / 100, this.view.sy / 100); // stretch
       const z = this.view.zoom * scale;
       ctx.drawImage(this.img, (-this.img.width * z) / 2, (-this.img.height * z) / 2, this.img.width * z, this.img.height * z);
     }
