@@ -75,10 +75,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: MaskConfigEntry) -> bool
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_reload))
     if mask.state.visualizer_on:
-        try:
-            await mask.async_set_visualizer(True)
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("Music visualizer could not start: %s", err)
+        # in the background: installing its library can take a while (or fail offline)
+        async def _start_viz() -> None:
+            try:
+                await mask.async_set_visualizer(True)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Music visualizer could not start: %s", err)
+
+        entry.async_create_background_task(hass, _start_viz(), "shining_mask visualizer start")
     return True
 
 

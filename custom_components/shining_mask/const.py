@@ -52,3 +52,6 @@ DEFAULT_VISUALIZER_PORT = 8928
 
 # music-bars (rhythm) styles, mode byte 0-4
 BAR_STYLES = {"Rainbow": 0, "Warm": 1, "Cool": 2, "Mirror": 3, "Vertical": 4}
+
+# Installed on demand when the music visualizer is switched on (not a hard requirement)
+VISUALIZER_REQUIREMENT = "aiosendspin==10.3.0"

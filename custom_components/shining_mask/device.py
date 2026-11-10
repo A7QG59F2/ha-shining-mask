@@ -757,6 +757,19 @@ class ShiningMask:
         from .visualizer import MaskVisualizer
 
         if on and self.visualizer is None:
+            # The music-bars library is installed only when needed, so a missing internet
+            # connection at startup can never stop the mask itself from loading.
+            from homeassistant.requirements import RequirementsNotFound, async_process_requirements
+
+            from .const import DOMAIN, VISUALIZER_REQUIREMENT
+
+            try:
+                await async_process_requirements(self.hass, DOMAIN, [VISUALIZER_REQUIREMENT])
+            except RequirementsNotFound as err:
+                raise HomeAssistantError(
+                    f"Music visualizer needs {VISUALIZER_REQUIREMENT}, which couldn't be installed "
+                    "(no internet?). The rest of the mask works; try the switch again later."
+                ) from err
             viz = MaskVisualizer(self.hass, self, self.visualizer_port, self.state.visualizer_style, self.state.visualizer_delay_ms)
             try:
                 await viz.async_start()
