@@ -2,6 +2,9 @@
 
 All notable changes. Versions follow semver: new features bump the minor number, fixes bump the patch number.
 
+## 0.29.1 - 2026-11-10
+- README states clearly that this project is vibe-coded (written by AI).
+
 ## 0.29.0 - 2026-11-10
 - Releases are published automatically: a GitHub Action creates a release (with these notes) whenever the version changes.
 

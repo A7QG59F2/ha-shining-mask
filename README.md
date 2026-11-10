@@ -1,5 +1,10 @@
 # Shining Mask for Home Assistant
 
+> **⚠️ Vibe-coded.** This entire integration was written by an AI (Claude) through conversation,
+> not by a professional developer. The Bluetooth protocol was worked out by reverse-engineering the
+> phone app and by trial and error on one mask. It works for its author, but it hasn't been formally
+> reviewed or tested. Use it at your own risk, and expect rough edges.
+
 Control a "Shining Mask" app LED mask from Home Assistant over Bluetooth, and give a voice
 satellite a face.
 
