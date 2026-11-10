@@ -237,6 +237,9 @@ shawnrancatore/shining-mask, bishopfox/shining-mask.
 - Speed direction (higher = faster or slower) and the number of built-in images/animations vary by mask firmware.
 - Only control your own mask. The protocol has no pairing, so the integration only talks to the address you set up.
 
+## Changelog
+See [CHANGELOG.md](CHANGELOG.md). Every version is published as a GitHub release.
+
 ## Credits
 - [brickcraftdream/shining-mask-stuff](https://github.com/brickcraftdream/shining-mask-stuff): BLE protocol
   notes. Built-in animation range (up to 69), the 10-slot PLAY limit, safe text

@@ -642,9 +642,11 @@ def settings_card(hass, addr: str) -> dict[str, Any]:
     reg = er.async_get(hass)
 
     def ent(domain: str, key: str):
+        """Entity id of this mask's entity (domain + unique-id key), or None if missing."""
         return reg.async_get_entity_id(domain, DOMAIN, f"{addr}_{key}")
 
     def section(title: str, rows: list[tuple[str, str, str]]) -> dict[str, Any]:
+        """An entities card: rows of (domain, key, label), skipping entities that don't exist."""
         items = [{"entity": e, "name": n} for d, k, n in rows if (e := ent(d, k))]
         return {"type": "entities", "title": title, "state_color": True, "entities": items}
 

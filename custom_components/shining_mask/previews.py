@@ -126,6 +126,7 @@ class BuiltinPic:
 
     @property
     def url(self) -> str:
+        """Web address of this picture, served by the integration."""
         from urllib.parse import quote
 
         return f"{URL_ROOT}/builtin/{quote(self.rel or self.path.name)}"
