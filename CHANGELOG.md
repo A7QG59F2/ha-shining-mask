@@ -2,8 +2,12 @@
 
 All notable changes. Versions follow semver: new features bump the minor number, fixes bump the patch number.
 
+## 0.29.0 - 2026-11-10
+- Releases are published automatically: a GitHub Action creates a release (with these notes) whenever the version changes.
+
 ## 0.28.3 - 2026-11-10
-- Added this changelog; releases are now published on GitHub for every version.
+- Added this changelog and the remaining code comments.
+- Earlier: mask loads even without internet (0.28.2), stretch/skew controls (0.28.1), Shining Mask sidebar panel with all settings (0.28.0).
 
 ## 0.28.2 - 2026-11-10
 - Mask loads even without internet: music-visualizer library installed on demand, in the background

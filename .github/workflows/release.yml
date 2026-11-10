@@ -1,0 +1,73 @@
+# Publishes a GitHub release automatically whenever the integration's version changes.
+#
+# On every push to main: read "version" from manifest.json. If there's no release for that
+# version yet, create tag v<version> and a release whose notes are that version's section of
+# CHANGELOG.md. HACS then offers it as an update. Nothing happens if the version is unchanged.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - custom_components/shining_mask/manifest.json
+  workflow_dispatch: {}
+
+permissions:
+  contents: write  # needed to create tags and releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('custom_components/shining_mask/manifest.json'))['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Manifest version: $VERSION"
+
+      - name: Skip if this version is already released
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release v${{ steps.version.outputs.version }} already exists - nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notes from CHANGELOG.md
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          # take the lines between "## <version>" and the next "## " heading
+          python3 - "${{ steps.version.outputs.version }}" > notes.md <<'PY'
+          import sys
+          version = sys.argv[1]
+          out, grab = [], False
+          for line in open("CHANGELOG.md", encoding="utf-8"):
+              if line.startswith("## "):
+                  if grab:
+                      break
+                  grab = line[3:].split(" ")[0] == version
+                  continue
+              if grab:
+                  out.append(line)
+          text = "".join(out).strip()
+          print(text or f"Version {version}. See CHANGELOG.md.")
+          print("\nFull history: see CHANGELOG.md.")
+          PY
+          cat notes.md
+
+      - name: Create the release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --target "${{ github.sha }}" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes-file notes.md

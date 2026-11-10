@@ -238,7 +238,7 @@ shawnrancatore/shining-mask, bishopfox/shining-mask.
 - Only control your own mask. The protocol has no pairing, so the integration only talks to the address you set up.
 
 ## Changelog
-See [CHANGELOG.md](CHANGELOG.md). Every version is published as a GitHub release.
+See [CHANGELOG.md](CHANGELOG.md). Every version is published as a GitHub release automatically (`.github/workflows/release.yml`).
 
 ## Credits
 - [brickcraftdream/shining-mask-stuff](https://github.com/brickcraftdream/shining-mask-stuff): BLE protocol
