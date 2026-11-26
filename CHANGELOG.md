@@ -2,6 +2,11 @@
 
 All notable changes. Versions follow semver: new features bump the minor number, fixes bump the patch number.
 
+## Unreleased
+
+- No Claude Code `.claude/settings.json` in this public repo. CLAUDE.md now tells Claude to ask, in each session that needs to push, whether to add the git-push rule. Every PR now carries a changelog entry (see CLAUDE.md).
+  After merging: nothing.
+
 ## 0.29.1 - 2026-11-10
 - README states clearly that this project is vibe-coded (written by AI).
 
