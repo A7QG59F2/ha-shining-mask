@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push *)",
+      "Bash(git -c * push *)",
+      "mcp__github__create_repository",
+      "mcp__github__create_branch",
+      "mcp__github__create_pull_request"
+    ],
+    "deny": [
+      "Bash(git push*--force*)",
+      "Bash(git push* -f)",
+      "Bash(git push* -f *)",
+      "Bash(git -c * push*--force*)",
+      "Bash(git -c * push* -f)",
+      "Bash(git -c * push* -f *)",
+      "Bash(git push*--delete*)",
+      "Bash(git push* -d *)",
+      "Bash(git push* :*)",
+      "Bash(git -c * push*--delete*)",
+      "Bash(git -c * push* -d *)",
+      "Bash(git -c * push* :*)",
+      "Bash(git push* main)",
+      "Bash(git push* main *)",
+      "Bash(git push* master)",
+      "Bash(git push* master *)",
+      "Bash(git push*:main*)",
+      "Bash(git push*:master*)",
+      "Bash(git push*/main*)",
+      "Bash(git push*/master*)",
+      "Bash(git -c * push* main)",
+      "Bash(git -c * push* main *)",
+      "Bash(git -c * push* master)",
+      "Bash(git -c * push* master *)",
+      "Bash(git -c * push*:main*)",
+      "Bash(git -c * push*:master*)",
+      "mcp__github__merge_pull_request",
+      "mcp__github__enable_pr_auto_merge",
+      "mcp__github__delete_file"
+    ]
+  }
+}
